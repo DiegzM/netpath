@@ -1,0 +1,41 @@
+.page { height: 100%; display: flex; overflow: hidden; }
+
+.sidebar {
+  width: 190px; min-width: 190px;
+  background: var(--bg-surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto; padding-bottom: 16px;
+}
+
+.header { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
+.title  { font-family: var(--font-display); font-size: 15px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; }
+.sub    { font-size: 9px; color: var(--teal); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+
+.sLabel { font-size: 8px; font-weight: 700; letter-spacing: 0.15em; color: var(--text-muted);
+          text-transform: uppercase; padding: 10px 14px 6px; }
+
+.palette { display: flex; flex-direction: column; gap: 4px; padding: 0 10px; }
+.item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 8px; background: var(--bg-raised);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: grab;
+  transition: border-color 0.15s, transform 0.1s, background 0.15s;
+}
+.item:hover { border-color: var(--teal); background: #162840; transform: translateX(2px); }
+.itemLabel { font-size: 11px; font-weight: 700; color: var(--text-secondary); }
+.itemDesc  { font-size: 9px; color: var(--text-faint); margin-top: 1px; }
+
+.stats { display: flex; gap: 16px; padding: 14px; border-top: 1px solid var(--border); margin-top: auto; }
+.stat  { display: flex; flex-direction: column; align-items: center; }
+.statN { font-family: var(--font-display); font-size: 22px; font-weight: 300; color: var(--teal); }
+.statL { font-size: 8px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; }
+
+.clearBtn {
+  margin: 8px 12px 0; background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  padding: 6px; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+}
+.clearBtn:hover { color: var(--error); border-color: var(--error); }
+
+.canvasWrap { flex: 1; min-width: 0; }
