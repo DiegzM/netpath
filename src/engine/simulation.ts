@@ -1,91 +1,233 @@
-import type { Device }     from '../types/device';
 import type { Connection } from '../types/connection';
-import type { SimState, SimHop } from '../types/simulation';
-import { findPath, getConnectionsForDevice } from './graph';
+import type { Device } from '../types/device';
+import type { SimHop, SimMessage, SimPacketState, SimState } from '../types/simulation';
+import { findPath } from './graph';
 
-// ─── Hop action descriptions ───────────────────────────────────────────────────
-// Explains what each device type does when it receives the packet.
+const WEBSITE_FAILURES = [
+  'google.com could not be accessed!',
+  'github.com could not be resolved!',
+  'youtube.com failed to load!',
+  'wikipedia.org could not be reached!',
+  'openai.com timed out!',
+];
+
+const DNS_SUCCESSES = [
+  'DNS resolved google.com successfully.',
+  'DNS lookup returned github.com.',
+  'DNS translated wikipedia.org into an IP.',
+];
+
+const FIREWALL_SUCCESSES = [
+  'Firewall screened the inbound packet.',
+  'Firewall inspection completed before delivery.',
+  'Inbound traffic was filtered by the firewall.',
+];
+
+function randomItem<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function isTrafficEndpoint(device: Device): boolean {
+  return device.kind === 'host' || device.kind === 'internet';
+}
 
 function hopAction(device: Device, prevDevice: Device | undefined, nextDevice: Device | undefined): string {
   switch (device.kind) {
     case 'host':
-      if (!prevDevice) return `${device.label} sends HTTP request`;
-      return `${device.label} receives response ✓`;
+      if (!prevDevice) return `${device.label} sends an application request`;
+      if (!nextDevice) return `${device.label} receives the response`;
+      return `${device.label} forwards data to ${nextDevice.label}`;
     case 'switch':
-      return `Switch checks MAC table → forwards to ${nextDevice?.label ?? 'next hop'}`;
+      return `Switch checks the MAC table and forwards to ${nextDevice?.label ?? 'the next hop'}`;
     case 'router':
-      return `Router checks routing table → forwards to ${nextDevice?.label ?? 'next hop'}`;
+      return `Router checks the routing table and forwards to ${nextDevice?.label ?? 'the next hop'}`;
     case 'dns-server':
-      return `DNS resolves domain name → returns IP address`;
+      return 'DNS server translates a domain into an IP address';
     case 'firewall':
-      return `Firewall inspects packet → rule matched, allow`;
+      return 'Firewall inspects the packet against its rules';
     case 'access-point':
-      return `Access point bridges wireless → wired segment`;
+      return 'Access point bridges the wireless and wired segments';
     case 'internet':
-      return `Packet enters public internet`;
+      return prevDevice ? 'Traffic returns from the public internet' : 'Traffic leaves for the public internet';
     default:
-      return `Forwarding to ${nextDevice?.label ?? 'next hop'}`;
+      return `Forwarding to ${nextDevice?.label ?? 'the next hop'}`;
   }
 }
 
-// ─── Build simulation ──────────────────────────────────────────────────────────
-// Takes a fully validated topology and produces the initial SimState.
-// Returns null if no path exists between the given endpoints.
+function pathIncludesKind(devices: Device[], pathIds: string[], kind: Device['kind']): boolean {
+  return pathIds.some((id) => devices.find((device) => device.id === id)?.kind === kind);
+}
 
-export function buildSimulation(
+function canReachKind(
   devices: Device[],
   connections: Connection[],
   fromId: string,
-  toId: string,
-): SimState | null {
-  const pathIds = findPath(devices, connections, fromId, toId);
-  if (!pathIds.length) return null;
+  kind: Device['kind'],
+): boolean {
+  return devices
+    .filter((device) => device.kind === kind)
+    .some((device) => findPath(devices, connections, fromId, device.id).length > 0);
+}
 
-  const hops: SimHop[] = pathIds.map((id, i) => {
-    const device     = devices.find(d => d.id === id)!;
-    const prevDevice = i > 0 ? devices.find(d => d.id === pathIds[i - 1]) : undefined;
-    const nextDevice = i < pathIds.length - 1 ? devices.find(d => d.id === pathIds[i + 1]) : undefined;
+function buildPacketMessage(
+  devices: Device[],
+  connections: Connection[],
+  from: Device,
+  to: Device,
+  pathIds: string[],
+): SimMessage | undefined {
+  const trafficPassesFirewall = pathIncludesKind(devices, pathIds, 'firewall');
+  const sourceCanReachDns = from.kind === 'host' && canReachKind(devices, connections, from.id, 'dns-server');
+
+  if (from.kind === 'internet' && to.kind === 'host' && !trafficPassesFirewall) {
+    return {
+      text: 'Potentially unsafe packet!',
+      tone: 'warning',
+    };
+  }
+
+  if (from.kind === 'internet' && to.kind === 'host' && trafficPassesFirewall && Math.random() < 0.35) {
+    return {
+      text: randomItem(FIREWALL_SUCCESSES),
+      tone: 'info',
+    };
+  }
+
+  if (from.kind === 'host' && to.kind === 'internet' && !sourceCanReachDns && Math.random() < 0.45) {
+    return {
+      text: randomItem(WEBSITE_FAILURES),
+      tone: 'danger',
+    };
+  }
+
+  if (from.kind === 'host' && to.kind === 'internet' && sourceCanReachDns && Math.random() < 0.35) {
+    return {
+      text: randomItem(DNS_SUCCESSES),
+      tone: 'info',
+    };
+  }
+
+  return undefined;
+}
+
+function createPacketFromPath(
+  devices: Device[],
+  connections: Connection[],
+  from: Device,
+  to: Device,
+  pathIds: string[],
+): SimPacketState {
+  const hops: SimHop[] = pathIds.map((id, index) => {
+    const device = devices.find((candidate) => candidate.id === id)!;
+    const prevDevice = index > 0 ? devices.find((candidate) => candidate.id === pathIds[index - 1]) : undefined;
+    const nextDevice =
+      index < pathIds.length - 1 ? devices.find((candidate) => candidate.id === pathIds[index + 1]) : undefined;
+
     return {
       deviceId: id,
-      action:   hopAction(device, prevDevice, nextDevice),
-      x:        device.x,
-      y:        device.y,
+      action: hopAction(device, prevDevice, nextDevice),
+      x: device.x,
+      y: device.y,
     };
   });
 
   return {
-    path:         hops,
+    id: `pkt-${from.id}-${to.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    sourceId: from.id,
+    targetId: to.id,
+    path: hops,
     currentIndex: 0,
-    x:            hops[0].x,
-    y:            hops[0].y,
-    done:         false,
+    x: hops[0].x,
+    y: hops[0].y,
+    done: false,
+    message: buildPacketMessage(devices, connections, from, to, pathIds),
   };
 }
 
-// ─── Step simulation ───────────────────────────────────────────────────────────
-// Pure function — takes current state, returns next state.
-// The store calls this on each tick interval.
+export function getTrafficEndpoints(devices: Device[]): Device[] {
+  return devices.filter(isTrafficEndpoint);
+}
 
-export function stepSimulation(state: SimState): SimState {
-  if (state.done) return state;
+export function canSimulateTraffic(devices: Device[], connections: Connection[]): boolean {
+  const endpoints = getTrafficEndpoints(devices);
 
-  const nextIndex = state.currentIndex + 1;
-
-  if (nextIndex >= state.path.length) {
-    return { ...state, done: true };
+  for (const from of endpoints) {
+    for (const to of endpoints) {
+      if (from.id === to.id) continue;
+      if (findPath(devices, connections, from.id, to.id).length > 0) {
+        return true;
+      }
+    }
   }
 
-  const nextHop = state.path[nextIndex];
+  return false;
+}
+
+export function createTrafficPacket(devices: Device[], connections: Connection[]): SimPacketState | null {
+  const endpoints = getTrafficEndpoints(devices);
+  const candidates: Array<{ from: Device; to: Device; pathIds: string[] }> = [];
+  const internetCandidates: Array<{ from: Device; to: Device; pathIds: string[] }> = [];
+
+  for (const from of endpoints) {
+    for (const to of endpoints) {
+      if (from.id === to.id) continue;
+      const pathIds = findPath(devices, connections, from.id, to.id);
+      if (pathIds.length > 0) {
+        const candidate = { from, to, pathIds };
+        candidates.push(candidate);
+        if (from.kind === 'internet' || to.kind === 'internet') {
+          internetCandidates.push(candidate);
+        }
+      }
+    }
+  }
+
+  if (!candidates.length) return null;
+
+  const route =
+    internetCandidates.length > 0 && Math.random() < 0.65
+      ? randomItem(internetCandidates)
+      : randomItem(candidates);
+  return createPacketFromPath(devices, connections, route.from, route.to, route.pathIds);
+}
+
+export function stepSimulation(packet: SimPacketState): SimPacketState | null {
+  if (packet.done) return null;
+
+  const nextIndex = packet.currentIndex + 1;
+  if (nextIndex >= packet.path.length) {
+    return { ...packet, done: true };
+  }
+
+  const nextHop = packet.path[nextIndex];
   return {
-    ...state,
+    ...packet,
     currentIndex: nextIndex,
-    x:            nextHop.x,
-    y:            nextHop.y,
+    x: nextHop.x,
+    y: nextHop.y,
   };
 }
 
-// ─── Current hop tooltip ───────────────────────────────────────────────────────
+export function tickSimulation(state: SimState, devices: Device[], connections: Connection[]): SimState {
+  const steppedPackets = state.packets
+    .map((packet) => stepSimulation(packet))
+    .filter((packet): packet is SimPacketState => packet !== null && !packet.done);
 
-export function getCurrentHopAction(state: SimState): string {
-  return state.path[state.currentIndex]?.action ?? '';
+  const nextTickCount = state.tickCount + 1;
+  const nextPackets = [...steppedPackets];
+  const shouldSpawn = nextPackets.length < 5 && (nextPackets.length === 0 || nextTickCount % 2 === 0);
+
+  if (shouldSpawn) {
+    const newPacket = createTrafficPacket(devices, connections);
+    if (newPacket) nextPackets.push(newPacket);
+  }
+
+  return {
+    packets: nextPackets,
+    tickCount: nextTickCount,
+  };
+}
+
+export function getCurrentHopAction(packet: SimPacketState): string {
+  return packet.path[packet.currentIndex]?.action ?? '';
 }

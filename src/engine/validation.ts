@@ -70,15 +70,12 @@ export function requireMinConnections(kind: string, minCount: number): Validatio
 
 export function composeRules(...rules: ValidationRule[]): ValidationRule {
   return (devices, connections) => {
-    let best: ValidationStatus = 'idle';
-    for (const rule of rules) {
-      const result = rule(devices, connections);
-      if (result === 'invalid') return 'invalid';
-      if (result === 'partial') best = 'partial';
-      if (result === 'valid' && best !== 'partial') best = 'valid';
-    }
-    // All rules must pass for overall valid
-    const allValid = rules.every(r => r(devices, connections) === 'valid');
-    return allValid ? 'valid' : best;
+    const results = rules.map((rule) => rule(devices, connections));
+
+    if (results.includes('invalid')) return 'invalid';
+    if (results.every((result) => result === 'valid')) return 'valid';
+    if (results.includes('partial')) return 'partial';
+    if (results.includes('valid')) return 'partial';
+    return 'idle';
   };
 }

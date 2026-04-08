@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { ValidationStatus } from '../types/curriculum';
 import { STAGES } from '../data/stages';
 import { useCanvasStore } from './useCanvasStore';
+import { useSimStore } from './useSimStore';
 
 interface CurriculumState {
   currentStageIndex: number;
@@ -25,6 +26,7 @@ export const useCurriculumStore = create<CurriculumState>((set, get) => ({
     const stage = STAGES[index];
     if (!stage) return;
     // Reset canvas to match the new stage
+    useSimStore.getState().stop();
     useCanvasStore.getState().resetToStage(index);
     set({
       currentStageIndex: index,
@@ -35,9 +37,18 @@ export const useCurriculumStore = create<CurriculumState>((set, get) => ({
 
   validate() {
     const { devices, connections } = useCanvasStore.getState();
-    const stage  = STAGES[get().currentStageIndex];
+    const { currentStageIndex, completedStages } = get();
+    const stage  = STAGES[currentStageIndex];
     const status = stage.validateFn(devices, connections);
-    set({ validationStatus: status });
+    const stageId = stage.id;
+
+    set({
+      validationStatus: status,
+      completedStages:
+        status === 'valid' && !completedStages.includes(stageId)
+          ? [...completedStages, stageId]
+          : completedStages,
+    });
   },
 
   completeStage() {

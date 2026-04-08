@@ -1,55 +1,51 @@
 import React, { useEffect } from 'react';
-import { useNavigate }           from 'react-router-dom';
-import { useCanvasStore }        from '../../store/useCanvasStore';
-import { useCurriculumStore }    from '../../store/useCurriculumStore';
-import { useSimStore }           from '../../store/useSimStore';
-import { NetworkCanvas }         from '../../components/Canvas/NetworkCanvas';
-import { DeviceIcon }            from '../../components/UI/DeviceIcon';
-import { STAGES }                from '../../data/stages';
-import type { DeviceKind }       from '../../types/device';
+import { useCanvasStore } from '../../store/useCanvasStore';
+import { useCurriculumStore } from '../../store/useCurriculumStore';
+import { useSimStore } from '../../store/useSimStore';
+import { NetworkCanvas } from '../../components/Canvas/NetworkCanvas';
+import { DeviceIcon } from '../../components/UI/DeviceIcon';
+import { STAGES } from '../../data/stages';
+import { canSimulateTraffic } from '../../engine/simulation';
+import type { DeviceKind } from '../../types/device';
 import styles from './LearnPage.module.css';
 
-// ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS = {
-  idle:    { label: 'Not connected',        color: '#5a7090' },
-  partial: { label: 'Partially connected',  color: '#d69e2e' },
-  valid:   { label: 'Network valid ✓',      color: '#38b2ac' },
-  invalid: { label: 'Invalid topology',     color: '#e53e3e' },
+  idle: { label: 'Not connected', color: '#5a7090' },
+  partial: { label: 'Partially connected', color: '#d69e2e' },
+  valid: { label: 'Network valid', color: '#38b2ac' },
+  invalid: { label: 'Invalid topology', color: '#e53e3e' },
 };
 
 const ALL_DEVICES: { kind: DeviceKind; label: string }[] = [
-  { kind: 'host',         label: 'Host'         },
-  { kind: 'switch',       label: 'Switch'       },
-  { kind: 'router',       label: 'Router'       },
+  { kind: 'host', label: 'Host' },
+  { kind: 'switch', label: 'Switch' },
+  { kind: 'router', label: 'Router' },
   { kind: 'access-point', label: 'Access Point' },
-  { kind: 'dns-server',   label: 'DNS Server'   },
-  { kind: 'firewall',     label: 'Firewall'     },
-  { kind: 'internet',     label: 'Internet'     },
+  { kind: 'dns-server', label: 'DNS Server' },
+  { kind: 'firewall', label: 'Firewall' },
+  { kind: 'internet', label: 'Internet' },
 ];
 
-// ─── Sidebar ───────────────────────────────────────────────────────────────────
-
 const LearnSidebar: React.FC = () => {
-  const { devices }                           = useCanvasStore();
+  const { devices } = useCanvasStore();
   const { currentStageIndex, validationStatus, showHint, toggleHint } = useCurriculumStore();
-  const stage  = STAGES[currentStageIndex];
+  const stage = STAGES[currentStageIndex];
   const status = STATUS[validationStatus];
+  const canAdd = stage.targetDeviceKinds.filter((kind) => !devices.some((device) => device.kind === kind));
 
-  const canAdd = stage.targetDeviceKinds.filter(k => !devices.some(d => d.kind === k));
-
-  function handleDragStart(e: React.DragEvent, kind: DeviceKind) {
-    e.dataTransfer.setData('deviceKind', kind);
+  function handleDragStart(event: React.DragEvent, kind: DeviceKind) {
+    event.dataTransfer.setData('deviceKind', kind);
   }
 
   function renderTheory(text: string) {
-    return text.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
-      p.startsWith('**') ? <strong key={i}>{p.slice(2, -2)}</strong> : p
+    return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+      part.startsWith('**') ? <strong key={index}>{part.slice(2, -2)}</strong> : part,
     );
   }
 
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.arcTag}>ARC {stage.arc} — {stage.arc === 1 ? 'LAN FUNDAMENTALS' : 'WAN & INTERNET'}</div>
+      <div className={styles.arcTag}>ARC {stage.arc} - {stage.arc === 1 ? 'LAN FUNDAMENTALS' : 'WAN & INTERNET'}</div>
 
       <div className={styles.stageHead}>
         <h2 className={styles.stageTitle}>{stage.title}</h2>
@@ -57,29 +53,33 @@ const LearnSidebar: React.FC = () => {
       </div>
 
       <section className={styles.section}>
-        <div className={styles.sLabel}>▶ HOW IT WORKS</div>
-        {stage.theory.map((p, i) => (
-          <p key={i} className={styles.theoryP}>{renderTheory(p)}</p>
+        <div className={styles.sLabel}>How It Works</div>
+        {stage.theory.map((paragraph, index) => (
+          <p key={index} className={styles.theoryP}>{renderTheory(paragraph)}</p>
         ))}
       </section>
 
       <div className={`${styles.taskBox} ${styles[validationStatus]}`}>
-        <div className={styles.taskLabel}>🎯 YOUR TASK</div>
+        <div className={styles.taskLabel}>Your Task</div>
         <p className={styles.taskText}>{stage.task}</p>
-        <span className={styles.statusChip} style={{ color: status.color, borderColor: status.color + '55' }}>
+        <span className={styles.statusChip} style={{ color: status.color, borderColor: `${status.color}55` }}>
           {status.label}
         </span>
       </div>
 
       {canAdd.length > 0 && (
         <section className={styles.section}>
-          <div className={styles.sLabel}>DRAG TO CANVAS</div>
+          <div className={styles.sLabel}>Drag To Canvas</div>
           <div className={styles.palette}>
-            {canAdd.map(kind => (
-              <div key={kind} className={styles.paletteItem}
-                draggable onDragStart={e => handleDragStart(e, kind)}>
+            {canAdd.map((kind) => (
+              <div
+                key={kind}
+                className={styles.paletteItem}
+                draggable
+                onDragStart={(event) => handleDragStart(event, kind)}
+              >
                 <DeviceIcon kind={kind} size={24} />
-                <span>{ALL_DEVICES.find(d => d.kind === kind)?.label}</span>
+                <span>{ALL_DEVICES.find((device) => device.kind === kind)?.label}</span>
               </div>
             ))}
           </div>
@@ -87,29 +87,25 @@ const LearnSidebar: React.FC = () => {
       )}
 
       <button className={styles.hintBtn} onClick={toggleHint}>
-        💡 {showHint ? 'Hide hint' : 'Show hint'}
+        {showHint ? 'Hide hint' : 'Show hint'}
       </button>
       {showHint && <div className={styles.hintBox}>{stage.hint}</div>}
     </aside>
   );
 };
 
-// ─── Bottom toolbar ────────────────────────────────────────────────────────────
-
 const LearnToolbar: React.FC = () => {
-  const nav = useNavigate();
   const { currentStageIndex, validationStatus, validate, goToStage } = useCurriculumStore();
-  const { resetToStage }   = useCanvasStore();
-  const { run, tick, stop, isSimulating } = useSimStore();
+  const { devices, connections, resetToStage } = useCanvasStore();
+  const { toggle, tick, stop, isSimulating, simState } = useSimStore();
+  const canSimulate = canSimulateTraffic(devices, connections);
+  const canNext = validationStatus === 'valid' && currentStageIndex < STAGES.length - 1;
 
-  // Drive packet animation tick
   useEffect(() => {
     if (!isSimulating) return;
     const id = setInterval(tick, 600);
     return () => clearInterval(id);
   }, [isSimulating, tick]);
-
-  const canNext = validationStatus === 'valid' && currentStageIndex < STAGES.length - 1;
 
   function handleReset() {
     stop();
@@ -120,45 +116,53 @@ const LearnToolbar: React.FC = () => {
     <footer className={styles.toolbar}>
       <span className={styles.stageMeta}>Stage {STAGES[currentStageIndex].id} of {STAGES.length}</span>
       <div className={styles.actions}>
-        <button className={`${styles.btn} ${styles.simulate}`}
-          disabled={validationStatus !== 'valid' || isSimulating} onClick={run}>
-          🔸 Simulate
+        <button className={`${styles.btn} ${styles.simulate}`} disabled={!canSimulate} onClick={toggle}>
+          {isSimulating ? 'Stop Stream' : 'Start Stream'}
         </button>
-        <button className={`${styles.btn} ${styles.check} ${validationStatus === 'valid' ? styles.checkValid : ''}`}
-          onClick={validate}>
-          ✔ Check
+        <button
+          className={`${styles.btn} ${styles.check} ${validationStatus === 'valid' ? styles.checkValid : ''}`}
+          onClick={validate}
+        >
+          Check
         </button>
-        <button className={`${styles.btn} ${styles.reset}`} onClick={handleReset}>↺ Reset</button>
+        <button className={`${styles.btn} ${styles.reset}`} onClick={handleReset}>
+          Reset
+        </button>
         {canNext && (
           <button className={`${styles.btn} ${styles.next}`} onClick={() => goToStage(currentStageIndex + 1)}>
-            Next →
+            Next {'->'}
           </button>
         )}
       </div>
+      <span className={styles.simMeta}>
+        {isSimulating
+          ? `${simState.packets.length} active packet${simState.packets.length === 1 ? '' : 's'}`
+          : 'Traffic stream is available when two reachable endpoints exist'}
+      </span>
     </footer>
   );
 };
 
-// ─── Stage tabs ────────────────────────────────────────────────────────────────
-
 const StageTabs: React.FC = () => {
   const { currentStageIndex, completedStages, goToStage } = useCurriculumStore();
+
   return (
     <div className={styles.tabs}>
-      {STAGES.map((s, i) => (
-        <button key={s.id}
+      {STAGES.map((stage, index) => (
+        <button
+          key={stage.id}
           className={`${styles.tab}
-            ${i === currentStageIndex          ? styles.tabActive : ''}
-            ${completedStages.includes(s.id)   ? styles.tabDone   : ''}`}
-          onClick={() => goToStage(i)} title={s.title}>
-          {i + 1}
+            ${index === currentStageIndex ? styles.tabActive : ''}
+            ${completedStages.includes(stage.id) ? styles.tabDone : ''}`}
+          onClick={() => goToStage(index)}
+          title={stage.title}
+        >
+          {index + 1}
         </button>
       ))}
     </div>
   );
 };
-
-// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export const LearnPage: React.FC = () => (
   <div className={styles.page}>

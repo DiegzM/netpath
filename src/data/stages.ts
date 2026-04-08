@@ -1,13 +1,12 @@
-import type { StageConfig }   from '../types/curriculum';
-import type { Device }         from '../types/device';
+import type { StageConfig } from '../types/curriculum';
+import type { Device } from '../types/device';
 import {
-  requireDeviceKinds,
-  requireAllConnectedTo,
-  requireMinConnections,
   composeRules,
+  requireAllConnectedTo,
+  requireConnection,
+  requireDeviceKinds,
+  requireMinConnections,
 } from '../engine/validation';
-
-// ─── Helper: blank device config ──────────────────────────────────────────────
 
 function device(
   id: string,
@@ -19,8 +18,6 @@ function device(
 ): Device {
   return { id, kind, label, x, y, config: { ip } };
 }
-
-// ─── Stage definitions ─────────────────────────────────────────────────────────
 
 export const STAGES: StageConfig[] = [
   {
@@ -42,17 +39,15 @@ export const STAGES: StageConfig[] = [
       device('h2', 'host', 'Host B', 620, 220, '192.168.1.2'),
     ],
     targetDeviceKinds: [],
-    validateFn: (_, connections) =>
-      connections.length >= 1 ? 'valid' : 'idle',
+    validateFn: (_, connections) => (connections.length >= 1 ? 'valid' : 'idle'),
   },
-
   {
     id: 2,
     title: 'Adding a Switch',
     subtitle: 'Connecting multiple devices in a LAN',
     arc: 1,
     theory: [
-      'A **switch** acts as a central hub — any device can plug in and talk to any other.',
+      'A **switch** acts as a central hub. Any device can plug in and talk to any other.',
       'Switches forward traffic only to the correct port using a MAC address table, unlike older hubs that broadcast to everyone.',
       'Switches operate at **Layer 2** of the OSI model.',
     ],
@@ -61,9 +56,9 @@ export const STAGES: StageConfig[] = [
     requiredConnections: 3,
     requiredDevices: 4,
     preplacedDevices: [
-      device('h1', 'host',   'Host A',   180, 160, '192.168.1.1'),
-      device('h2', 'host',   'Host B',   650, 160, '192.168.1.2'),
-      device('h3', 'host',   'Host C',   420, 360, '192.168.1.3'),
+      device('h1', 'host', 'Host A', 180, 160, '192.168.1.1'),
+      device('h2', 'host', 'Host B', 650, 160, '192.168.1.2'),
+      device('h3', 'host', 'Host C', 420, 360, '192.168.1.3'),
     ],
     targetDeviceKinds: ['switch'],
     validateFn: composeRules(
@@ -71,7 +66,6 @@ export const STAGES: StageConfig[] = [
       requireAllConnectedTo('host', 'switch'),
     ),
   },
-
   {
     id: 3,
     title: 'Enter the Router',
@@ -80,18 +74,18 @@ export const STAGES: StageConfig[] = [
     theory: [
       'A **router** connects different networks. While a switch stays inside one LAN, a router decides how to forward packets between distinct networks.',
       'Routers work at **Layer 3** using IP addresses, consulting a routing table to choose the best next hop.',
-      'Your home router connects your private LAN to your ISP — bridging two separate address spaces.',
+      'Your home router connects your private LAN to your ISP, bridging two separate address spaces.',
     ],
     task: 'Connect both LANs via the router so all hosts can communicate.',
-    hint: 'Connect Switch A to the router\'s left port, Switch B to the right port.',
+    hint: 'Connect Switch A to the router, then connect Switch B to the other side.',
     requiredConnections: 4,
     requiredDevices: 6,
     preplacedDevices: [
-      device('h1',  'host',   'Host A',   120, 180, '10.0.0.1'),
-      device('h2',  'host',   'Host B',   120, 310, '10.0.0.2'),
+      device('h1', 'host', 'Host A', 120, 180, '10.0.0.1'),
+      device('h2', 'host', 'Host B', 120, 310, '10.0.0.2'),
       device('sw1', 'switch', 'Switch A', 300, 245),
-      device('h3',  'host',   'Host C',   720, 180, '10.0.1.1'),
-      device('h4',  'host',   'Host D',   720, 310, '10.0.1.2'),
+      device('h3', 'host', 'Host C', 720, 180, '10.0.1.1'),
+      device('h4', 'host', 'Host D', 720, 310, '10.0.1.2'),
       device('sw2', 'switch', 'Switch B', 540, 245),
     ],
     targetDeviceKinds: ['router'],
@@ -100,59 +94,95 @@ export const STAGES: StageConfig[] = [
       requireMinConnections('router', 2),
     ),
   },
-
   {
     id: 4,
-    title: 'DNS — The Phone Book',
-    subtitle: 'Turning names into addresses',
+    title: 'Connecting to the Internet',
+    subtitle: 'Building a path from the LAN to the outside world',
     arc: 1,
     theory: [
-      'Typing `google.com` works because a **DNS server** translates that name into an IP address.',
-      'Your computer asks: *"What IP does google.com map to?"* The DNS replies, then your browser connects.',
-      'Without DNS you\'d need to memorise IP addresses for every website.',
+      'The **internet** represents networks outside your local control. Once your router connects to it, your hosts can send traffic beyond the LAN.',
+      'Getting online is only part of the story. Without DNS, people can still have trouble reaching websites by name even if the physical path exists.',
+      'This lesson focuses on building that outbound path first so you can see the internet link before name resolution is added.',
     ],
-    task: 'Add a DNS server to the network and connect it to the switch.',
-    hint: 'Drag the DNS Server from the palette and cable it into the switch.',
+    task: 'Connect both hosts to the switch, link the switch to the router, and connect the router to the internet.',
+    hint: 'Build the LAN first, then connect the router directly to the internet node.',
     requiredConnections: 4,
     requiredDevices: 5,
     preplacedDevices: [
-      device('h1',  'host',   'Host A', 150, 160, '192.168.1.2'),
-      device('h2',  'host',   'Host B', 150, 310, '192.168.1.3'),
+      device('h1', 'host', 'Host A', 150, 160, '192.168.1.2'),
+      device('h2', 'host', 'Host B', 150, 310, '192.168.1.3'),
       device('sw1', 'switch', 'Switch', 360, 240),
-      device('r1',  'router', 'Router', 570, 240),
+      device('r1', 'router', 'Router', 570, 240),
+      device('net', 'internet', 'Internet', 790, 240),
+    ],
+    targetDeviceKinds: [],
+    validateFn: composeRules(
+      requireDeviceKinds(['internet']),
+      requireAllConnectedTo('host', 'switch'),
+      requireConnection('switch', 'router'),
+      requireConnection('router', 'internet'),
+    ),
+  },
+  {
+    id: 5,
+    title: 'DNS - The Phone Book',
+    subtitle: 'Using DNS to find internet destinations by name',
+    arc: 1,
+    theory: [
+      'Typing `google.com` works because a **DNS server** translates that name into an IP address.',
+      'Your computer asks what IP address a website maps to, the DNS server replies, and then the browser can continue toward the internet.',
+      'A DNS server only helps if it is actually connected to the same network as the hosts that need it.',
+    ],
+    task: 'Keep the internet uplink connected, then add a DNS server and connect it to the switch.',
+    hint: 'The DNS server belongs on the local network while the router still connects outward to the internet.',
+    requiredConnections: 5,
+    requiredDevices: 6,
+    preplacedDevices: [
+      device('h1', 'host', 'Host A', 80, 160, '192.168.1.2'),
+      device('h2', 'host', 'Host B', 80, 310, '192.168.1.3'),
+      device('sw1', 'switch', 'Switch', 260, 240),
+      device('r1', 'router', 'Router', 440, 240),
+      device('net', 'internet', 'Internet', 760, 240),
     ],
     targetDeviceKinds: ['dns-server'],
     validateFn: composeRules(
-      requireDeviceKinds(['dns-server']),
-      requireMinConnections('dns-server', 1),
+      requireDeviceKinds(['dns-server', 'internet']),
+      requireAllConnectedTo('host', 'switch'),
+      requireConnection('switch', 'router'),
+      requireConnection('router', 'internet'),
+      requireConnection('dns-server', 'switch'),
     ),
   },
-
   {
-    id: 5,
-    title: 'Firewalls & The Internet',
-    subtitle: 'Protecting your network at the boundary',
+    id: 6,
+    title: 'Firewalls at the Edge',
+    subtitle: 'Protecting the LAN before internet traffic gets in',
     arc: 1,
     theory: [
-      'A **firewall** sits at the edge of your network, inspecting every packet entering or leaving.',
-      'Firewalls define rules: allow outbound HTTP, deny unsolicited inbound connections.',
-      'The **internet** node is an abstraction representing all external networks beyond your control.',
+      'A **firewall** belongs between your router and the public internet, inspecting traffic before it reaches internal devices.',
+      'Placement matters. A firewall that is merely sitting on the canvas but not inline with the traffic path provides no protection.',
+      'In this final lesson, DNS and internet access are already available. Your goal is to place the firewall where it can actually protect the network.',
     ],
-    task: 'Complete the network: connect the router to a firewall, then the firewall to the internet.',
-    hint: 'The firewall always sits between the router and the internet.',
-    requiredConnections: 5,
+    task: 'Connect the hosts and DNS server to the switch, then place a firewall between the router and the internet.',
+    hint: 'The safe path is host -> switch -> router -> firewall -> internet.',
+    requiredConnections: 6,
     requiredDevices: 7,
     preplacedDevices: [
-      device('h1',  'host',     'Host A',   80,  160, '192.168.1.2'),
-      device('h2',  'host',     'Host B',   80,  310, '192.168.1.3'),
-      device('sw1', 'switch',   'Switch',   260, 240),
-      device('r1',  'router',   'Router',   440, 240),
-      device('net', 'internet', 'Internet', 760, 240),
+      device('h1', 'host', 'Host A', 80, 160, '192.168.1.2'),
+      device('h2', 'host', 'Host B', 80, 310, '192.168.1.3'),
+      device('sw1', 'switch', 'Switch', 260, 240),
+      device('r1', 'router', 'Router', 440, 240),
+      device('dns', 'dns-server', 'DNS', 260, 90, '192.168.1.53'),
+      device('net', 'internet', 'Internet', 790, 240),
     ],
     targetDeviceKinds: ['firewall'],
     validateFn: composeRules(
-      requireDeviceKinds(['firewall']),
-      requireMinConnections('firewall', 2),
+      requireDeviceKinds(['firewall', 'dns-server', 'internet']),
+      requireAllConnectedTo('host', 'switch'),
+      requireConnection('dns-server', 'switch'),
+      requireConnection('switch', 'router'),
+      requireConnection('router', 'firewall'),
+      requireConnection('firewall', 'internet'),
     ),
   },
 ];

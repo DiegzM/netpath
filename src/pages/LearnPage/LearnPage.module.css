@@ -94,10 +94,11 @@
   height: 48px; flex-shrink: 0;
   background: var(--bg-base); border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 18px;
+  gap: 12px; padding: 0 18px;
 }
 .stageMeta { font-size: 10px; color: var(--text-faint); }
 .actions   { display: flex; gap: 7px; }
+.simMeta   { margin-left: auto; font-size: 9px; color: var(--text-faint); white-space: nowrap; }
 
 .btn {
   font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
@@ -110,7 +111,17 @@
 .simulate { background: linear-gradient(135deg, #d97706, #b45309); color: #fff; }
 .simulate:not(:disabled):hover { box-shadow: 0 0 12px rgba(217,119,6,0.4); }
 
-.check      { background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-muted); }
+.check {
+  background: linear-gradient(135deg, rgba(12, 30, 43, 0.95), rgba(18, 42, 58, 0.92));
+  border: 1px solid rgba(56, 178, 172, 0.28);
+  color: #c7f8f0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+.check:hover {
+  border-color: rgba(56, 178, 172, 0.62);
+  color: #f0fffb;
+  box-shadow: 0 0 12px rgba(56, 178, 172, 0.18);
+}
 .checkValid { border-color: var(--teal-dim); color: var(--teal); box-shadow: 0 0 8px var(--teal-glow); }
 
 .reset { background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-muted); }

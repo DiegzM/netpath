@@ -1,45 +1,65 @@
 import { create } from 'zustand';
 import type { SimState } from '../types/simulation';
-import { buildSimulation, stepSimulation } from '../engine/simulation';
+import { canSimulateTraffic, createTrafficPacket, tickSimulation } from '../engine/simulation';
 import { useCanvasStore } from './useCanvasStore';
 
+const EMPTY_SIM_STATE: SimState = {
+  packets: [],
+  tickCount: 0,
+};
+
 interface SimStoreState {
-  simState:    SimState | null;
+  simState: SimState;
   isSimulating: boolean;
 
-  run:  () => void;   // build sim from current canvas and start
-  tick: () => void;   // advance one hop
-  stop: () => void;   // cancel
+  run: () => void;
+  tick: () => void;
+  stop: () => void;
+  toggle: () => void;
 }
 
 export const useSimStore = create<SimStoreState>((set, get) => ({
-  simState:     null,
+  simState: EMPTY_SIM_STATE,
   isSimulating: false,
 
   run() {
     const { devices, connections } = useCanvasStore.getState();
+    if (!canSimulateTraffic(devices, connections)) return;
 
-    // Find first and last host as default endpoints
-    const hosts = devices.filter(d => d.kind === 'host');
-    if (hosts.length < 2) return;
-
-    const state = buildSimulation(devices, connections, hosts[0].id, hosts[hosts.length - 1].id);
-    if (!state) return;
-
-    set({ simState: state, isSimulating: true });
+    const firstPacket = createTrafficPacket(devices, connections);
+    set({
+      simState: {
+        packets: firstPacket ? [firstPacket] : [],
+        tickCount: 0,
+      },
+      isSimulating: true,
+    });
   },
 
   tick() {
-    const { simState } = get();
-    if (!simState || simState.done) {
-      set({ isSimulating: false });
+    if (!get().isSimulating) return;
+
+    const { devices, connections } = useCanvasStore.getState();
+    if (!canSimulateTraffic(devices, connections)) {
+      set({ simState: EMPTY_SIM_STATE, isSimulating: false });
       return;
     }
-    const next = stepSimulation(simState);
-    set({ simState: next, isSimulating: !next.done });
+
+    set((state) => ({
+      simState: tickSimulation(state.simState, devices, connections),
+    }));
   },
 
   stop() {
-    set({ simState: null, isSimulating: false });
+    set({ simState: EMPTY_SIM_STATE, isSimulating: false });
+  },
+
+  toggle() {
+    if (get().isSimulating) {
+      get().stop();
+      return;
+    }
+
+    get().run();
   },
 }));

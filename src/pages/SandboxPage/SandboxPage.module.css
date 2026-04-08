@@ -30,12 +30,52 @@
 .statN { font-family: var(--font-display); font-size: 22px; font-weight: 300; color: var(--teal); }
 .statL { font-size: 8px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; }
 
-.clearBtn {
-  margin: 8px 12px 0; background: none; border: 1px solid var(--border);
-  border-radius: var(--radius-sm); color: var(--text-muted);
-  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
-  padding: 6px; cursor: pointer; transition: color 0.2s, border-color 0.2s;
+.actions {
+  margin-top: 8px;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.clearBtn:hover { color: var(--error); border-color: var(--error); }
+
+.actionBtn {
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  padding: 7px 8px; cursor: pointer; transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.actionBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.simulateBtn {
+  color: #ffd7a3;
+  border-color: rgba(217, 119, 6, 0.35);
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.18), rgba(180, 83, 9, 0.22));
+}
+
+.simulateBtn:hover:not(:disabled) {
+  color: #fff3e0;
+  border-color: #d97706;
+}
+
+.stopBtn:hover:not(:disabled) {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+.clearBtn:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.actionHint {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
 
 .canvasWrap { flex: 1; min-width: 0; }

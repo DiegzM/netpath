@@ -140,6 +140,38 @@
   pointer-events: none;
 }
 .packetBurst { animation: burst 0.5s ease-out forwards; }
+.packetNote {
+  position: absolute;
+  max-width: 190px;
+  min-width: 110px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  z-index: 11;
+  pointer-events: none;
+}
+.packetNoteInfo {
+  color: #d8f7ff;
+  background: rgba(16, 60, 79, 0.92);
+  border: 1px solid rgba(104, 211, 245, 0.45);
+}
+.packetNoteWarning {
+  color: #fff2cc;
+  background: rgba(92, 59, 8, 0.94);
+  border: 1px solid rgba(246, 173, 85, 0.5);
+}
+.packetNoteDanger {
+  color: #ffe0e0;
+  background: rgba(89, 20, 20, 0.95);
+  border: 1px solid rgba(252, 129, 129, 0.5);
+}
 @keyframes burst {
   0%   { transform: scale(1);   opacity: 1; }
   60%  { transform: scale(2.5); opacity: 0.6; }

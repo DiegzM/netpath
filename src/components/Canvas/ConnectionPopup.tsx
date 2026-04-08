@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useCanvasStore } from '../../store/useCanvasStore';
-import type { PortMode }  from '../../types/connection';
+import type { ConnectionConfig, PortMode }  from '../../types/connection';
 import styles from './NetworkCanvas.module.css';
 
 interface ConnectionPopupProps {
@@ -38,17 +38,18 @@ export const ConnectionPopup: React.FC<ConnectionPopupProps> = ({
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [conn]);
+  }, [conn, onClose]);
 
   if (!conn) return null;
 
-  function update(patch: Partial<typeof conn.config>) {
+  function update(patch: Partial<ConnectionConfig>) {
     if (!conn) return;
     updateConnection(conn.id, { config: { ...conn.config, ...patch } });
   }
 
   function handleDelete() {
-    removeConnection(conn!.id);
+    if (!conn) return;
+    removeConnection(conn.id);
     onClose();
   }
 

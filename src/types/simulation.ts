@@ -1,18 +1,30 @@
-// ─── Simulation types ──────────────────────────────────────────────────────────
+export type SimMessageTone = 'info' | 'warning' | 'danger';
 
-// A single hop in the simulation path with metadata for the tooltip
 export interface SimHop {
-  deviceId:   string;
-  action:     string;  // e.g. "Router checks routing table → forwards to next hop"
-  x:          number;
-  y:          number;
+  deviceId: string;
+  action: string;
+  x: number;
+  y: number;
 }
 
-// Full simulation state — produced by engine/simulation.ts
-export interface SimState {
-  path:         SimHop[];
+export interface SimMessage {
+  text: string;
+  tone: SimMessageTone;
+}
+
+export interface SimPacketState {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  path: SimHop[];
   currentIndex: number;
-  x:            number;
-  y:            number;
-  done:         boolean;
+  x: number;
+  y: number;
+  done: boolean;
+  message?: SimMessage;
+}
+
+export interface SimState {
+  packets: SimPacketState[];
+  tickCount: number;
 }
