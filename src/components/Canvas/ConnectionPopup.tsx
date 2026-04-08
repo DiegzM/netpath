@@ -80,7 +80,7 @@ export const ConnectionPopup: React.FC<ConnectionPopupProps> = ({
         </div>
 
         <div className={styles.popupFields}>
-          <label className={styles.popupLabel}>Port Mode</label>
+          {/* <label className={styles.popupLabel}>Port Mode</label>
           <select
             className={styles.popupSelect}
             value={conn.config.portMode}
@@ -101,7 +101,7 @@ export const ConnectionPopup: React.FC<ConnectionPopupProps> = ({
                 onChange={e => update({ vlanId: Number(e.target.value) || undefined })}
               />
             </>
-          )}
+          )} */}
 
           {showIp && (
             <>
