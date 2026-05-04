@@ -36,14 +36,53 @@
 
 .icon { font-size: 10px; opacity: 0.7; }
 
-.right { display: flex; align-items: center; }
+.right { display: flex; align-items: center; gap: 10px; }
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+
+.userName {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.userEmail {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.logout {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  transition: border-color 0.15s, color 0.15s, transform 0.12s;
+}
+
+.logout:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+  transform: translateY(-1px);
+}
 
 .avatar {
   width: 26px; height: 26px;
   border-radius: 50%;
   background: var(--bg-raised);
   border: 2px solid var(--border);
-  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 700;
   transition: border-color 0.2s;
 }
 .avatar:hover { border-color: var(--teal); }
