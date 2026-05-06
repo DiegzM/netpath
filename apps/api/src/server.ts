@@ -6,8 +6,8 @@ import cors from '@fastify/cors';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
-import { getPool, initDatabase } from './db';
-import { requireAuth, signAccessToken } from './auth';
+import { getPool, initDatabase } from './db.js';
+import { requireAuth, signAccessToken } from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
