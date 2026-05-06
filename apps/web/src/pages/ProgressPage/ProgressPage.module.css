@@ -1,0 +1,64 @@
+.page { height: 100%; overflow-y: auto; background: var(--bg-base); padding: 32px 0 48px; }
+.inner { max-width: 780px; margin: 0 auto; padding: 0 24px; }
+
+.header { margin-bottom: 20px; }
+.heading { font-family: var(--font-display); font-size: 28px; font-weight: 300;
+           color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: 4px; }
+.sub { font-size: 11px; color: var(--text-muted); }
+
+.barWrap { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+.track   { flex: 1; height: 4px; background: var(--bg-raised); border-radius: 2px; overflow: hidden; }
+.fill    { height: 100%; background: linear-gradient(90deg, var(--teal-dim), var(--teal)); border-radius: 2px; }
+.pct     { font-family: var(--font-display); font-size: 13px; color: var(--teal); min-width: 36px; text-align: right; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 16px;
+  cursor: pointer; position: relative;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--border); transition: background 0.2s;
+}
+.card:hover:not(.locked) { border-color: var(--teal); transform: translateY(-2px); }
+.card:hover:not(.locked)::before { background: var(--teal); }
+.card.done { border-color: #1a3a38; background: #0d201e; }
+.card.done::before { background: var(--teal-dim); }
+.card.locked { opacity: 0.4; cursor: not-allowed; }
+
+.badge {
+  position: absolute; top: 12px; right: 14px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+}
+.done .badge { border-color: var(--teal-dim); color: var(--teal); }
+
+.arc { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; color: var(--amber);
+       text-transform: uppercase; margin-bottom: 8px; }
+
+.cardTitle { font-family: var(--font-display); font-size: 14px; font-weight: 500;
+             color: var(--text-primary); margin-bottom: 3px; }
+.cardSub   { font-size: 10px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4; }
+
+.deviceRow { display: flex; gap: 5px; align-items: center; margin-bottom: 12px; }
+.statusRow { display: flex; align-items: center; }
+
+.tagDone   { font-size: 10px; font-weight: 700; color: var(--teal);       letter-spacing: 0.04em; }
+.tagLocked { font-size: 10px; font-weight: 700; color: var(--text-faint); }
+.tagOpen   { font-size: 10px; font-weight: 700; color: var(--amber);      letter-spacing: 0.04em; }
+
+.allDone {
+  margin-top: 24px; padding: 16px 20px;
+  background: #0d2020; border: 1px solid var(--teal-dim);
+  border-radius: var(--radius-md); font-size: 13px; color: var(--teal); text-align: center;
+}
