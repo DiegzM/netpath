@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useCanvasStore } from '../../store/useCanvasStore';
-import type { ConnectionConfig, PortMode }  from '../../types/connection';
+import type { ConnectionConfig }  from '../../types/connection';
 import styles from './NetworkCanvas.module.css';
 
 interface ConnectionPopupProps {
@@ -53,7 +53,6 @@ export const ConnectionPopup: React.FC<ConnectionPopupProps> = ({
     onClose();
   }
 
-  const showVlan = conn.config.portMode === 'access';
   const showIp   = from?.kind === 'router' && to?.kind === 'router';
 
   return (

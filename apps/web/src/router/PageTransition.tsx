@@ -1,6 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 const variants = {
   initial: { opacity: 0, y: 6 },

@@ -5,8 +5,8 @@ import { useSimStore } from '../../store/useSimStore';
 import { NetworkCanvas } from '../../components/Canvas/NetworkCanvas';
 import { DeviceIcon } from '../../components/UI/DeviceIcon';
 import { STAGES } from '../../data/stages';
-import { canSimulateTraffic } from '../../engine/simulation';
-import type { DeviceKind } from '../../types/device';
+import { canRunStageStream, canSimulateTraffic, createStageTrafficPacket } from '../../engine/simulation';
+import type { Device, DeviceKind } from '../../types/device';
 import styles from './LearnPage.module.css';
 
 const STATUS = {
@@ -26,15 +26,40 @@ const ALL_DEVICES: { kind: DeviceKind; label: string }[] = [
   { kind: 'internet', label: 'Internet' },
 ];
 
+interface PaletteItem {
+  key: string;
+  kind: DeviceKind;
+  label: string;
+  template?: Device;
+}
+
 const LearnSidebar: React.FC = () => {
   const { devices } = useCanvasStore();
   const { currentStageIndex, validationStatus, showHint, toggleHint } = useCurriculumStore();
   const stage = STAGES[currentStageIndex];
   const status = STATUS[validationStatus];
-  const canAdd = stage.targetDeviceKinds.filter((kind) => !devices.some((device) => device.kind === kind));
+  const missingStageDevices: PaletteItem[] = stage.preplacedDevices
+    .filter((stageDevice) => !devices.some((device) => device.id === stageDevice.id))
+    .map((stageDevice) => ({
+      key: `stage-${stageDevice.id}`,
+      kind: stageDevice.kind,
+      label: stageDevice.label,
+      template: stageDevice,
+    }));
+  const missingTargetDevices: PaletteItem[] = stage.targetDeviceKinds
+    .filter((kind) => !devices.some((device) => device.kind === kind))
+    .map((kind) => ({
+      key: `target-${kind}`,
+      kind,
+      label: ALL_DEVICES.find((device) => device.kind === kind)?.label ?? kind,
+    }));
+  const canAdd = [...missingStageDevices, ...missingTargetDevices];
 
-  function handleDragStart(event: React.DragEvent, kind: DeviceKind) {
-    event.dataTransfer.setData('deviceKind', kind);
+  function handleDragStart(event: React.DragEvent, item: PaletteItem) {
+    event.dataTransfer.setData('deviceKind', item.kind);
+    if (item.template) {
+      event.dataTransfer.setData('deviceTemplate', JSON.stringify(item.template));
+    }
   }
 
   function renderTheory(text: string) {
@@ -45,7 +70,7 @@ const LearnSidebar: React.FC = () => {
 
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.arcTag}>ARC {stage.arc} - {stage.arc === 1 ? 'LAN FUNDAMENTALS' : 'WAN & INTERNET'}</div>
+      <div className={styles.arcTag}>ARC {stage.arc} - {stage.arc === 1 ? 'LAN FUNDAMENTALS' : 'ADVANCED NETWORKS'}</div>
 
       <div className={styles.stageHead}>
         <h2 className={styles.stageTitle}>{stage.title}</h2>
@@ -71,15 +96,15 @@ const LearnSidebar: React.FC = () => {
         <section className={styles.section}>
           <div className={styles.sLabel}>Drag To Canvas</div>
           <div className={styles.palette}>
-            {canAdd.map((kind) => (
+            {canAdd.map((item) => (
               <div
-                key={kind}
+                key={item.key}
                 className={styles.paletteItem}
                 draggable
-                onDragStart={(event) => handleDragStart(event, kind)}
+                onDragStart={(event) => handleDragStart(event, item)}
               >
-                <DeviceIcon kind={kind} size={24} />
-                <span>{ALL_DEVICES.find((device) => device.kind === kind)?.label}</span>
+                <DeviceIcon kind={item.kind} size={24} />
+                <span>{item.label}</span>
               </div>
             ))}
           </div>
@@ -97,8 +122,11 @@ const LearnSidebar: React.FC = () => {
 const LearnToolbar: React.FC = () => {
   const { currentStageIndex, validationStatus, validate, goToStage } = useCurriculumStore();
   const { devices, connections, resetToStage } = useCanvasStore();
-  const { toggle, tick, stop, isSimulating, simState } = useSimStore();
-  const canSimulate = canSimulateTraffic(devices, connections);
+  const { run, tick, stop, isSimulating, simState } = useSimStore();
+  const stage = STAGES[currentStageIndex];
+  const canSendPacket = stage.stream
+    ? canRunStageStream(stage.stream, devices, connections)
+    : canSimulateTraffic(devices, connections);
   const canNext = validationStatus === 'valid' && currentStageIndex < STAGES.length - 1;
 
   useEffect(() => {
@@ -112,12 +140,38 @@ const LearnToolbar: React.FC = () => {
     resetToStage(currentStageIndex);
   }
 
+  function handleSendPacket() {
+    if (isSimulating) {
+      stop();
+      return;
+    }
+
+    if (!stage.stream) {
+      run();
+      validate();
+      return;
+    }
+
+    const packet = createStageTrafficPacket(stage.stream, devices, connections);
+    if (!packet) {
+      validate();
+      return;
+    }
+
+    run(packet);
+    validate();
+  }
+
   return (
     <footer className={styles.toolbar}>
       <span className={styles.stageMeta}>Stage {STAGES[currentStageIndex].id} of {STAGES.length}</span>
       <div className={styles.actions}>
-        <button className={`${styles.btn} ${styles.simulate}`} disabled={!canSimulate} onClick={toggle}>
-          {isSimulating ? 'Stop Stream' : 'Start Stream'}
+        <button
+          className={`${styles.btn} ${styles.simulate}`}
+          disabled={!isSimulating && !canSendPacket}
+          onClick={handleSendPacket}
+        >
+          {isSimulating ? 'Stop Packet' : 'Send Packet'}
         </button>
         <button
           className={`${styles.btn} ${styles.check} ${validationStatus === 'valid' ? styles.checkValid : ''}`}
@@ -136,8 +190,8 @@ const LearnToolbar: React.FC = () => {
       </div>
       <span className={styles.simMeta}>
         {isSimulating
-          ? `${simState.packets.length} active packet${simState.packets.length === 1 ? '' : 's'}`
-          : 'Traffic stream is available when two reachable endpoints exist'}
+          ? `${simState.packets.length} packet${simState.packets.length === 1 ? '' : 's'} moving along the intended route`
+          : 'Send one packet when the intended route is reachable'}
       </span>
     </footer>
   );

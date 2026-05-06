@@ -19,7 +19,7 @@ const ALL_DEVICES: { kind: DeviceKind; label: string; desc: string }[] = [
 
 export const SandboxPage: React.FC = () => {
   const { devices, connections, clearCanvas } = useCanvasStore();
-  const { toggle, tick, stop, isSimulating, simState } = useSimStore();
+  const { run, tick, stop, isSimulating, simState } = useSimStore();
   const canSimulate = canSimulateTraffic(devices, connections);
 
   useEffect(() => {
@@ -31,6 +31,15 @@ export const SandboxPage: React.FC = () => {
   function handleClearCanvas() {
     stop();
     clearCanvas();
+  }
+
+  function handleSendPacket() {
+    if (isSimulating) {
+      stop();
+      return;
+    }
+
+    run();
   }
 
   return (
@@ -71,15 +80,19 @@ export const SandboxPage: React.FC = () => {
         </div>
 
         <div className={styles.actions}>
-          <button className={`${styles.actionBtn} ${styles.simulateBtn}`} disabled={!canSimulate} onClick={toggle}>
-            {isSimulating ? 'Stop Stream' : 'Start Stream'}
+          <button
+            className={`${styles.actionBtn} ${styles.simulateBtn}`}
+            disabled={!isSimulating && !canSimulate}
+            onClick={handleSendPacket}
+          >
+            {isSimulating ? 'Stop Packet' : 'Send Packet'}
           </button>
           <button className={`${styles.actionBtn} ${styles.clearBtn}`} onClick={handleClearCanvas}>
             Clear Canvas
           </button>
           <p className={styles.actionHint}>
             {isSimulating
-              ? `${simState.packets.length} active packet${simState.packets.length === 1 ? '' : 's'} crossing reachable hosts and internet nodes.`
+              ? `${simState.packets.length} packet${simState.packets.length === 1 ? '' : 's'} crossing reachable hosts and internet nodes.`
               : 'Create at least two reachable endpoints. Hosts and the internet both count as valid traffic endpoints.'}
           </p>
         </div>

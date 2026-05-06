@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SimState } from '../types/simulation';
+import type { SimPacketState, SimState } from '../types/simulation';
 import { canSimulateTraffic, createTrafficPacket, tickSimulation } from '../engine/simulation';
 import { useCanvasStore } from './useCanvasStore';
 
@@ -12,7 +12,7 @@ interface SimStoreState {
   simState: SimState;
   isSimulating: boolean;
 
-  run: () => void;
+  run: (packet?: SimPacketState) => void;
   tick: () => void;
   stop: () => void;
   toggle: () => void;
@@ -22,32 +22,29 @@ export const useSimStore = create<SimStoreState>((set, get) => ({
   simState: EMPTY_SIM_STATE,
   isSimulating: false,
 
-  run() {
+  run(packet) {
     const { devices, connections } = useCanvasStore.getState();
-    if (!canSimulateTraffic(devices, connections)) return;
+    if (!packet && !canSimulateTraffic(devices, connections)) return;
 
-    const firstPacket = createTrafficPacket(devices, connections);
+    const firstPacket = packet ?? createTrafficPacket(devices, connections);
     set({
       simState: {
         packets: firstPacket ? [firstPacket] : [],
         tickCount: 0,
       },
-      isSimulating: true,
+      isSimulating: firstPacket !== null,
     });
   },
 
   tick() {
     if (!get().isSimulating) return;
 
-    const { devices, connections } = useCanvasStore.getState();
-    if (!canSimulateTraffic(devices, connections)) {
-      set({ simState: EMPTY_SIM_STATE, isSimulating: false });
-      return;
-    }
+    const nextState = tickSimulation(get().simState);
 
-    set((state) => ({
-      simState: tickSimulation(state.simState, devices, connections),
-    }));
+    set({
+      simState: nextState,
+      isSimulating: nextState.packets.length > 0,
+    });
   },
 
   stop() {

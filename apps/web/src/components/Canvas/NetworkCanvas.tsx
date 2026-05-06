@@ -5,7 +5,7 @@ import { DeviceNode }      from './DeviceNode';
 import { SimPacket }       from './SimPacket';
 import { ConnectionPopup } from './ConnectionPopup';
 import { useWiring }       from './hooks/useWiring';
-import type { DeviceKind } from '../../types/device';
+import type { Device, DeviceKind } from '../../types/device';
 import styles from './NetworkCanvas.module.css';
 
 const LABEL_MAP: Record<DeviceKind, string> = {
@@ -16,15 +16,34 @@ const LABEL_MAP: Record<DeviceKind, string> = {
 
 const CIRCLE_R = 31;
 
+function parseDeviceTemplate(raw: string): Device | null {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<Device>;
+    if (!parsed.id || !parsed.kind || !parsed.label) return null;
+    return {
+      id: parsed.id,
+      kind: parsed.kind,
+      label: parsed.label,
+      x: parsed.x ?? 0,
+      y: parsed.y ?? 0,
+      config: parsed.config ?? {},
+    };
+  } catch {
+    return null;
+  }
+}
+
 export const NetworkCanvas: React.FC = () => {
   const {
     devices, addDevice, startDrawing, cancelDrawing,
-    selectDevice, drawingFrom, selectedIds, setSelectedIds,
+    selectDevice, drawingFrom, setSelectedIds,
     clearSelection, removeSelected, undo, redo, past, future,
   } = useCanvasStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { ghostEnd, popup, closePopup, completeWire } = useWiring(canvasRef);
+  const { ghostEnd, completeWire } = useWiring(canvasRef);
 
   const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
   const [connPopup, setConnPopup] = useState<{ connId: string; x: number; y: number } | null>(null);
@@ -49,6 +68,7 @@ export const NetworkCanvas: React.FC = () => {
   const handleNodeClick = useCallback((deviceId: string) => {
     const df = useCanvasStore.getState().drawingFrom;
     setSelectedConnId(null);
+    setConnPopup(null);
     if (df && df !== deviceId) {
       const newConnId = completeWire(deviceId);
       // Select the new connection, deselect the node
@@ -121,12 +141,22 @@ export const NetworkCanvas: React.FC = () => {
   // ── Drop from palette ─────────────────────────────────────────────────────
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const template = parseDeviceTemplate(e.dataTransfer.getData('deviceTemplate'));
+
+    if (template) {
+      if (devices.some((device) => device.id === template.id)) return;
+      addDevice({ ...template, x, y });
+      return;
+    }
+
     const kind = e.dataTransfer.getData('deviceKind') as DeviceKind;
     if (!kind) return;
-    const rect = canvasRef.current!.getBoundingClientRect();
     addDevice({
       id: `d-${Date.now()}`, kind, label: LABEL_MAP[kind],
-      x: e.clientX - rect.left, y: e.clientY - rect.top,
+      x, y,
       config: {},
     });
   }
@@ -173,15 +203,7 @@ export const NetworkCanvas: React.FC = () => {
         />
       )}
 
-      {popup && (
-        <ConnectionPopup
-          fromId={popup.fromId} toId={popup.toId}
-          x={popup.x} y={popup.y}
-          onClose={closePopup}
-        />
-      )}
-
-      {connPopup && !popup && (
+      {connPopup && (
         <ConnectionPopup
           connId={connPopup.connId}
           x={connPopup.x} y={connPopup.y}

@@ -76,7 +76,7 @@ export const ProgressPage: React.FC = () => {
           <motion.div className={styles.allDone}
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4, duration: 0.4 }}>
-            🎉 Arc 1 complete! Arc 2 — Wide Area Networks — coming soon.
+            Curriculum complete - all advanced network stages finished.
           </motion.div>
         )}
       </div>

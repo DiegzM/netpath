@@ -1,5 +1,6 @@
 import type { Connection } from '../types/connection';
 import type { Device } from '../types/device';
+import type { StagePathStep, StageStreamConfig, ValidationStatus } from '../types/curriculum';
 import type { SimHop, SimMessage, SimPacketState, SimState } from '../types/simulation';
 import { findPath } from './graph';
 
@@ -25,6 +26,13 @@ const FIREWALL_SUCCESSES = [
 
 function randomItem<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function hasConnectionBetween(connections: Connection[], idA: string, idB: string): boolean {
+  return connections.some(
+    c => (c.from === idA && c.to === idB) ||
+         (c.from === idB && c.to === idA),
+  );
 }
 
 function isTrafficEndpoint(device: Device): boolean {
@@ -116,6 +124,7 @@ function createPacketFromPath(
   from: Device,
   to: Device,
   pathIds: string[],
+  options: { includeMessage?: boolean } = {},
 ): SimPacketState {
   const hops: SimHop[] = pathIds.map((id, index) => {
     const device = devices.find((candidate) => candidate.id === id)!;
@@ -140,8 +149,78 @@ function createPacketFromPath(
     x: hops[0].x,
     y: hops[0].y,
     done: false,
-    message: buildPacketMessage(devices, connections, from, to, pathIds),
+    message: options.includeMessage === false ? undefined : buildPacketMessage(devices, connections, from, to, pathIds),
   };
+}
+
+function getStepCandidates(devices: Device[], step: StagePathStep): Device[] {
+  if ('id' in step) return devices.filter((device) => device.id === step.id);
+  return devices.filter((device) => device.kind === step.kind);
+}
+
+export function resolveStageStreamPath(
+  stream: StageStreamConfig,
+  devices: Device[],
+  connections: Connection[],
+): Device[] | null {
+  if (stream.path.length < 2) return null;
+
+  const candidatesByStep = stream.path.map((step) => getStepCandidates(devices, step));
+  if (candidatesByStep.some((candidates) => candidates.length === 0)) return null;
+
+  function walk(index: number, path: Device[]): Device[] | null {
+    if (index === candidatesByStep.length) return path;
+
+    const previous = path[path.length - 1];
+    for (const candidate of candidatesByStep[index]) {
+      if (path.some((device) => device.id === candidate.id)) continue;
+      if (previous && !hasConnectionBetween(connections, previous.id, candidate.id)) continue;
+
+      const result = walk(index + 1, [...path, candidate]);
+      if (result) return result;
+    }
+
+    return null;
+  }
+
+  return walk(0, []);
+}
+
+export function validateStageStream(
+  stream: StageStreamConfig,
+  devices: Device[],
+  connections: Connection[],
+): ValidationStatus {
+  if (resolveStageStreamPath(stream, devices, connections)) return 'valid';
+
+  const hasAnyRequiredDevice = stream.path.some((step) => getStepCandidates(devices, step).length > 0);
+  return hasAnyRequiredDevice ? 'partial' : 'idle';
+}
+
+export function canRunStageStream(
+  stream: StageStreamConfig,
+  devices: Device[],
+  connections: Connection[],
+): boolean {
+  return resolveStageStreamPath(stream, devices, connections) !== null;
+}
+
+export function createStageTrafficPacket(
+  stream: StageStreamConfig,
+  devices: Device[],
+  connections: Connection[],
+): SimPacketState | null {
+  const path = resolveStageStreamPath(stream, devices, connections);
+  if (!path) return null;
+
+  return createPacketFromPath(
+    devices,
+    connections,
+    path[0],
+    path[path.length - 1],
+    path.map((device) => device.id),
+    { includeMessage: false },
+  );
 }
 
 export function getTrafficEndpoints(devices: Device[]): Device[] {
@@ -208,23 +287,14 @@ export function stepSimulation(packet: SimPacketState): SimPacketState | null {
   };
 }
 
-export function tickSimulation(state: SimState, devices: Device[], connections: Connection[]): SimState {
+export function tickSimulation(state: SimState): SimState {
   const steppedPackets = state.packets
     .map((packet) => stepSimulation(packet))
     .filter((packet): packet is SimPacketState => packet !== null && !packet.done);
 
-  const nextTickCount = state.tickCount + 1;
-  const nextPackets = [...steppedPackets];
-  const shouldSpawn = nextPackets.length < 5 && (nextPackets.length === 0 || nextTickCount % 2 === 0);
-
-  if (shouldSpawn) {
-    const newPacket = createTrafficPacket(devices, connections);
-    if (newPacket) nextPackets.push(newPacket);
-  }
-
   return {
-    packets: nextPackets,
-    tickCount: nextTickCount,
+    packets: steppedPackets,
+    tickCount: state.tickCount + 1,
   };
 }
 

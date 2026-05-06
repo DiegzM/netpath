@@ -13,7 +13,7 @@ export function getNeighbors(connections: Connection[], deviceId: string): strin
 
 // Returns the shortest path of device ids from startId to endId, or [] if none.
 export function findPath(
-  devices: Device[],
+  _devices: Device[],
   connections: Connection[],
   startId: string,
   endId: string,

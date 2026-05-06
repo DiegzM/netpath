@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { ValidationStatus } from '../types/curriculum';
 import { STAGES } from '../data/stages';
+import { validateStageStream } from '../engine/simulation';
+import { combineValidationStatuses } from '../engine/validation';
 import { useCanvasStore } from './useCanvasStore';
 import { useSimStore } from './useSimStore';
 import { apiRequest } from '../auth/api';
@@ -134,7 +136,11 @@ export const useCurriculumStore = create<CurriculumState>((set, get) => ({
     const { devices, connections } = useCanvasStore.getState();
     const state = get();
     const stage = STAGES[state.currentStageIndex];
-    const status = stage.validateFn(devices, connections);
+    const topologyStatus = stage.validateFn(devices, connections);
+    const streamStatus = stage.stream
+      ? validateStageStream(stage.stream, devices, connections)
+      : 'valid';
+    const status = combineValidationStatuses([topologyStatus, streamStatus]);
     const stageId = stage.id;
 
     const completedStages = status === 'valid' && !state.completedStages.includes(stageId)
