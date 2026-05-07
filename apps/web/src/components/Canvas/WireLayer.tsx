@@ -23,9 +23,21 @@ interface WireLayerProps {
 export const WireLayer: React.FC<WireLayerProps> = ({
   ghostEnd, drawingFromId, selectedConnId, packets, linkPressure, onConnClick,
 }) => {
-  const devices          = useCanvasStore(s => s.devices);
-  const connections      = useCanvasStore(s => s.connections);
-  const fromDevice       = drawingFromId ? devices.find(d => d.id === drawingFromId) : null;
+  const devices     = useCanvasStore(s => s.devices);
+  const connections = useCanvasStore(s => s.connections);
+  const fromDevice  = drawingFromId ? devices.find(d => d.id === drawingFromId) : null;
+
+  const busyLinkIds = new Set<string>();
+  for (const p of packets) {
+    const fromId = p.path[p.pathIndex];
+    const toId = p.path[p.pathIndex + 1];
+    if (!fromId || !toId) continue;
+
+    const conn = connections.find(
+      c => (c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId),
+    );
+    if (conn) busyLinkIds.add(conn.id);
+  }
 
   return (
     <svg className={styles.svg} style={{ pointerEvents: 'none' }}>
@@ -46,43 +58,36 @@ export const WireLayer: React.FC<WireLayerProps> = ({
 
         const pa         = edgePoint(a, b.x, b.y);
         const pb         = edgePoint(b, a.x, a.y);
-        const isSelected  = selectedConnId === conn.id;
+        const isSelected = selectedConnId === conn.id;
+        const pressure   = linkPressure[conn.id] ?? 0;
+        const isSaturated = pressure >= 1;
+        const isBusy      = busyLinkIds.has(conn.id);
+        const isWireless  = conn.config.linkType === 'wireless';
         const mx          = (pa.x + pb.x) / 2;
         const my          = (pa.y + pb.y) / 2;
-        const pressure    = linkPressure[conn.id] ?? 0;
 
-        const wireColor = isSelected
-          ? '#f6ad55'
-          : pressure >= 1
-            ? '#e53e3e'
-            : pressure >= 0.7
-              ? '#4fd1c5'
-              : '#4fd1c5';
-
-        const wireOpacity = isSelected ? 1 : pressure >= 1 ? 0.95 : pressure >= 0.7 ? 0.82 : 0.55;
-        const strokeWidth = pressure >= 1 ? 3 : pressure >= 0.7 ? 2.2 : isSelected ? 2.4 : 1.5;
+        const wireColor = isSelected ? '#f6ad55' : isSaturated ? '#fc5c5c' : isBusy ? '#68d391' : '#4fd1c5';
+        const wireOpacity = isSelected ? 1 : isSaturated ? 0.95 : isBusy ? 0.85 : 0.65;
+        const dashArray = isWireless ? '5 8' : isSelected ? undefined : '7 4';
+        const label = conn.config.description ?? null;
 
         return (
           <g key={conn.id}>
-            {/* Glow layer */}
             <line
               x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y}
               stroke={wireColor}
-              strokeWidth={pressure >= 1 ? 8 : 4}
-              opacity={pressure >= 1 ? 0.26 : 0.12}
-              filter="url(#glow)"
+              strokeWidth="4" opacity={isSaturated ? 0.35 : 0.12} filter="url(#glow)"
             />
 
-            {/* Visible cable */}
             <line
               x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y}
               stroke={wireColor}
-              strokeWidth={strokeWidth}
-              strokeDasharray={isSelected ? undefined : '7 4'}
+              strokeWidth={isSelected ? 2 : isSaturated ? 2 : 1.5}
+              strokeDasharray={dashArray}
               opacity={wireOpacity}
+              style={isWireless ? { animation: 'wirelessDash 1.2s linear infinite' } : undefined}
             />
 
-            {/* Fat invisible hit target */}
             <line
               x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y}
               stroke="transparent"
@@ -90,15 +95,23 @@ export const WireLayer: React.FC<WireLayerProps> = ({
               style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
               onClick={e => {
                 e.stopPropagation();
-              }}
-              onContextMenu={e => {
-                e.preventDefault();
-                e.stopPropagation();
                 onConnClick(conn.id, mx, my);
               }}
             />
 
-            {/* Selection dot at midpoint */}
+            {label && (
+              <text
+                x={mx} y={my - 8}
+                textAnchor="middle"
+                fill={wireColor}
+                fontSize="9" fontFamily="var(--font-mono)"
+                opacity="0.8"
+                style={{ pointerEvents: 'none' }}
+              >
+                {label}
+              </text>
+            )}
+
             {isSelected && (
               <circle
                 cx={mx} cy={my} r="5"
@@ -110,62 +123,43 @@ export const WireLayer: React.FC<WireLayerProps> = ({
         );
       })}
 
+      {fromDevice && ghostEnd && (
+        <line
+          x1={fromDevice.x}
+          y1={fromDevice.y}
+          x2={ghostEnd.x}
+          y2={ghostEnd.y}
+          stroke="#f6ad55"
+          strokeWidth="1.6"
+          strokeDasharray="5 6"
+          opacity="0.85"
+        />
+      )}
+
       {packets.map((packet) => {
-        if (packet.pathIndex >= packet.path.length - 1) return null;
-
-        const from = devices.find((device) => device.id === packet.path[packet.pathIndex]);
-        const to = devices.find((device) => device.id === packet.path[packet.pathIndex + 1]);
-        if (!from || !to) return null;
-
-        const start = edgePoint(from, to.x, to.y);
-        const end = edgePoint(to, from.x, from.y);
-        const x = start.x + (end.x - start.x) * packet.progress;
-        const y = start.y + (end.y - start.y) * packet.progress;
-
+        const fromId = packet.path[packet.pathIndex];
+        const toId   = packet.path[packet.pathIndex + 1];
+        if (!fromId || !toId) return null;
+        const a = devices.find(d => d.id === fromId);
+        const b = devices.find(d => d.id === toId);
+        if (!a || !b) return null;
+        const pa = edgePoint(a, b.x, b.y);
+        const pb = edgePoint(b, a.x, a.y);
+        const cx = pa.x + (pb.x - pa.x) * packet.progress;
+        const cy = pa.y + (pb.y - pa.y) * packet.progress;
+        const isSingle = packet.id.startsWith('single-');
         return (
           <circle
             key={packet.id}
-            cx={x}
-            cy={y}
-            r="3.5"
-            fill="#e6fffb"
-            stroke="#4fd1c5"
-            strokeWidth="1"
+            cx={cx}
+            cy={cy}
+            r={isSingle ? 5 : 4}
+            fill={isSingle ? '#f6e05e' : '#4fd1c5'}
+            filter="url(#glow)"
             opacity="0.95"
-            style={{ pointerEvents: 'none' }}
           />
         );
       })}
-
-      {fromDevice && ghostEnd && (() => {
-        const start = edgePoint(fromDevice, ghostEnd.x, ghostEnd.y);
-
-        return (
-          <g>
-            <line
-              x1={start.x} y1={start.y} x2={ghostEnd.x} y2={ghostEnd.y}
-              stroke="#f6ad55"
-              strokeWidth="5"
-              opacity="0.14"
-              filter="url(#glow)"
-            />
-            <line
-              x1={start.x} y1={start.y} x2={ghostEnd.x} y2={ghostEnd.y}
-              stroke="#f6ad55"
-              strokeWidth="2"
-              strokeDasharray="7 5"
-              opacity="0.9"
-            />
-            <circle
-              cx={ghostEnd.x}
-              cy={ghostEnd.y}
-              r="4"
-              fill="#f6ad55"
-              opacity="0.95"
-            />
-          </g>
-        );
-      })()}
     </svg>
   );
 };

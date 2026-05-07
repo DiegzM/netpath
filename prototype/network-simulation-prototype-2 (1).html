@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Simulation Lab - Interactive Training</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background: #1e293b;
+            border-right: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        
+        .sidebar-header {
+            padding: 24px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        }
+        
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+            color: white;
+        }
+        
+        .sidebar-header p {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            color: white;
+        }
+        
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .sidebar-section h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .node-palette {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .node-btn {
+            padding: 16px 12px;
+            background: #334155;
+            border: 2px solid #475569;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .node-btn:hover {
+            background: #475569;
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+        }
+        
+        .node-btn.active {
+            background: #1e40af;
+            border-color: #3b82f6;
+        }
+        
+        .node-icon {
+            font-size: 2rem;
+        }
+        
+        .node-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        
+        .tool-btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #334155;
+            border: 2px solid #475569;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #e2e8f0;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tool-btn:hover {
+            background: #475569;
+            border-color: #3b82f6;
+        }
+        
+        .tool-btn.active {
+            background: #1e40af;
+            border-color: #3b82f6;
+        }
+        
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .stat-card {
+            padding: 16px;
+            background: #334155;
+            border-radius: 8px;
+            border: 1px solid #475569;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: bold;
+        }
+        
+        .stat-value.success { color: #10b981; }
+        .stat-value.danger { color: #ef4444; }
+        .stat-value.warning { color: #f59e0b; }
+        .stat-value.info { color: #3b82f6; }
+        
+        /* Challenge Section */
+        .challenge-section {
+            background: linear-gradient(135deg, #1e3a8a 0%, #6366f1 100%);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .challenge-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: white;
+        }
+        
+        .challenge-objective {
+            font-size: 0.875rem;
+            margin-bottom: 12px;
+            color: #e0e7ff;
+        }
+        
+        .challenge-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .challenge-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        
+        .step-number {
+            width: 24px;
+            height: 24px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        
+        .step-number.completed {
+            background: #10b981;
+        }
+        
+        /* Main Area */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .toolbar {
+            padding: 16px 20px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #2563eb;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+        
+        .btn-secondary {
+            background: #475569;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #64748b;
+        }
+        
+        /* Canvas */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #0f172a;
+            overflow: hidden;
+        }
+        
+        .grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(#1e293b 1px, transparent 1px),
+                linear-gradient(90deg, #1e293b 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.3;
+        }
+        
+        /* Nodes */
+        .node {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            z-index: 10;
+            transition: transform 0.1s;
+        }
+        
+        .node:hover {
+            transform: scale(1.05);
+            z-index: 20;
+        }
+        
+        .node.selected {
+            filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.8));
+            z-index: 20;
+        }
+        
+        .node-content {
+            background: #1e293b;
+            border: 3px solid;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-width: 80px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .node-host .node-content { border-color: #10b981; }
+        .node-router .node-content { border-color: #3b82f6; }
+        .node-switch .node-content { border-color: #f59e0b; }
+        .node-firewall .node-content { border-color: #ef4444; }
+        .node-dns .node-content { border-color: #8b5cf6; }
+        .node-internet .node-content { border-color: #06b6d4; }
+        
+        .node-icon-large {
+            font-size: 2rem;
+        }
+        
+        .node-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            text-align: center;
+        }
+        
+        .delete-node-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: #ef4444;
+            border: 2px solid #1e293b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.75rem;
+            color: white;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+        }
+        
+        .node:hover .delete-node-btn {
+            opacity: 1;
+        }
+        
+        .delete-node-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+        
+        /* Connection Ports */
+        .connection-port {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #3b82f6;
+            border: 2px solid #1e293b;
+            border-radius: 50%;
+            cursor: crosshair;
+            z-index: 15;
+            transition: all 0.2s;
+        }
+        
+        .connection-port:hover {
+            transform: scale(1.5);
+            background: #60a5fa;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+        }
+        
+        .connection-port.active {
+            background: #10b981;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+            animation: pulse-port 1s infinite;
+        }
+        
+        @keyframes pulse-port {
+            0%, 100% { transform: scale(1.2); }
+            50% { transform: scale(1.5); }
+        }
+        
+        /* Connections */
+        .connection-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        .connection-line {
+            stroke-width: 3;
+            cursor: pointer;
+            pointer-events: stroke;
+            transition: stroke-width 0.2s;
+        }
+        
+        .connection-line:hover {
+            stroke-width: 6;
+        }
+        
+        .connection-line.normal { stroke: #3b82f6; }
+        .connection-line.warning { stroke: #f59e0b; }
+        .connection-line.critical { 
+            stroke: #ef4444;
+            animation: pulse-line 1s infinite;
+        }
+        
+        .temp-line {
+            stroke: #10b981;
+            stroke-width: 2;
+            stroke-dasharray: 5,5;
+        }
+        
+        @keyframes pulse-line {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .connection-label {
+            position: absolute;
+            background: #1e293b;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            border: 1px solid #475569;
+            pointer-events: none;
+            z-index: 6;
+            white-space: nowrap;
+            color: #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .delete-connection-btn {
+            position: absolute;
+            background: #ef4444;
+            color: white;
+            border: 2px solid #1e293b;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            z-index: 7;
+            font-weight: 600;
+        }
+        
+        .delete-connection-btn:hover {
+            background: #dc2626;
+        }
+        
+        /* Packets */
+        .packet {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            z-index: 8;
+            box-shadow: 0 0 8px currentColor;
+            transition: left 0.15s linear, top 0.15s linear;
+        }
+        
+        .packet-web { background: #10b981; }
+        .packet-voice { background: #ef4444; }
+        .packet-video { background: #3b82f6; }
+        .packet-data { background: #a0aec0; }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+        
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #e2e8f0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #cbd5e1;
+            font-size: 0.875rem;
+        }
+        
+        .form-group select,
+        .form-group input[type="number"],
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 2px solid #475569;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 0.875rem;
+        }
+        
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .form-group small {
+            display: block;
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 0.75rem;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+        
+        /* Traffic Generators */
+        .traffic-gen-item {
+            padding: 12px;
+            background: #334155;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 1px solid #475569;
+        }
+        
+        .traffic-gen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .traffic-gen-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .traffic-gen-route {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        
+        .small-btn {
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .small-btn-edit {
+            background: #3b82f6;
+            color: white;
+            margin-right: 4px;
+        }
+        
+        .small-btn-delete {
+            background: #ef4444;
+            color: white;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #64748b;
+        }
+        
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state p {
+            font-size: 0.875rem;
+        }
+        
+        /* Instructions Overlay */
+        .instructions-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(30, 41, 59, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            font-size: 0.875rem;
+            color: #cbd5e1;
+            max-width: 400px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+        const distance = (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        
+        // BFS Pathfinding
+        const findPath = (nodes, connections, startId, endId) => {
+            const graph = {};
+            nodes.forEach(n => graph[n.id] = []);
+            connections.forEach(c => {
+                graph[c.from].push(c.to);
+                graph[c.to].push(c.from);
+            });
+            
+            const queue = [[startId]];
+            const visited = new Set([startId]);
+            
+            while (queue.length > 0) {
+                const path = queue.shift();
+                const node = path[path.length - 1];
+                if (node === endId) return path;
+                
+                for (const neighbor of (graph[node] || [])) {
+                    if (!visited.has(neighbor)) {
+                        visited.add(neighbor);
+                        queue.push([...path, neighbor]);
+                    }
+                }
+            }
+            return null;
+        };
+        
+        function App() {
+            // Node types configuration
+            const nodeTypes = {
+                host: { icon: '💻', label: 'Host', color: '#10b981' },
+                router: { icon: '🔀', label: 'Router', color: '#3b82f6' },
+                switch: { icon: '🔌', label: 'Switch', color: '#f59e0b' },
+                firewall: { icon: '🛡️', label: 'Firewall', color: '#ef4444' },
+                dns: { icon: '🌐', label: 'DNS Server', color: '#8b5cf6' },
+                internet: { icon: '☁️', label: 'Internet', color: '#06b6d4' }
+            };
+            
+            // State
+            const [selectedTool, setSelectedTool] = useState('select');
+            const [nodes, setNodes] = useState([]);
+            const [connections, setConnections] = useState([]);
+            const [packets, setPackets] = useState([]);
+            const [trafficGenerators, setTrafficGenerators] = useState([]);
+            const [zoom, setZoom] = useState(1);
+            const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+            const [isPanning, setIsPanning] = useState(false);
+            const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+            
+            const [isRunning, setIsRunning] = useState(false);
+            const [stats, setStats] = useState({
+                delivered: 0,
+                dropped: 0,
+                active: 0
+            });
+            
+            const [selectedNode, setSelectedNode] = useState(null);
+            const [draggingNode, setDraggingNode] = useState(null);
+            const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+            
+            const [connectingFrom, setConnectingFrom] = useState(null);
+            const [draggingWire, setDraggingWire] = useState(false);
+            const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+            
+            const [showLinkModal, setShowLinkModal] = useState(false);
+            const [showTrafficModal, setShowTrafficModal] = useState(false);
+            const [linkConfig, setLinkConfig] = useState({
+                bandwidth: 100,
+                latency: 10,
+                from: null,
+                to: null
+            });
+            const [trafficConfig, setTrafficConfig] = useState({
+                type: 'web',
+                from: null,
+                to: null
+            });
+            
+            const canvasRef = useRef(null);
+            const simulationRef = useRef(null);
+            
+            // Challenge tracking
+            const [challengeProgress, setChallengeProgress] = useState({
+                step1: false,
+                step2: false,
+                step3: false,
+                step4: false,
+                step5: false
+            });
+            
+            // Load scenario
+            const loadOfficeScenario = () => {
+                const scenario = [
+                    { id: 'internet', type: 'internet', x: 400, y: 50, label: 'Internet' },
+                    { id: 'router', type: 'router', x: 400, y: 150, label: 'Main Router' },
+                    { id: 'firewall', type: 'firewall', x: 300, y: 250, label: 'Firewall' },
+                    { id: 'dns', type: 'dns', x: 500, y: 250, label: 'DNS Server' },
+                    { id: 'switch1', type: 'switch', x: 200, y: 350, label: 'Office Switch' },
+                    { id: 'host1', type: 'host', x: 100, y: 450, label: 'PC-1' },
+                    { id: 'host2', type: 'host', x: 200, y: 450, label: 'PC-2' },
+                    { id: 'host3', type: 'host', x: 300, y: 450, label: 'PC-3' }
+                ];
+                
+                const scenarioConnections = [
+                    { id: 'c1', from: 'internet', to: 'router', bandwidth: 1000, latency: 10 },
+                    { id: 'c2', from: 'router', to: 'firewall', bandwidth: 1000, latency: 1 },
+                    { id: 'c3', from: 'router', to: 'dns', bandwidth: 100, latency: 1 },
+                    { id: 'c4', from: 'firewall', to: 'switch1', bandwidth: 1000, latency: 1 },
+                    { id: 'c5', from: 'switch1', to: 'host1', bandwidth: 100, latency: 1 },
+                    { id: 'c6', from: 'switch1', to: 'host2', bandwidth: 100, latency: 1 },
+                    { id: 'c7', from: 'switch1', to: 'host3', bandwidth: 100, latency: 1 }
+                ];
+                
+                const scenarioTraffic = [
+                    { id: 't1', type: 'web', from: 'host1', to: 'dns' },
+                    { id: 't2', type: 'data', from: 'host2', to: 'host3' }
+                ];
+                
+                setNodes(scenario);
+                setConnections(scenarioConnections);
+                setTrafficGenerators(scenarioTraffic);
+                setPackets([]);
+                setStats({ delivered: 0, dropped: 0, active: 0 });
+                setIsRunning(false);
+            };
+            
+            // Add node to canvas
+            const handleCanvasClick = (e) => {
+                if (e.button === 1 || (e.button === 0 && e.target === canvasRef.current)) {
+                    // Middle click or left click on empty canvas starts panning
+                    if (!selectedTool || selectedTool === 'select') {
+                        setIsPanning(true);
+                        setPanStart({ x: e.clientX, y: e.clientY });
+                        return;
+                    }
+                }
+                
+                if (!selectedTool || selectedTool === 'select' || selectedTool === 'connect') return;
+                if (!nodeTypes[selectedTool]) return;
+                
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX - rect.left - panOffset.x) / zoom;
+                const y = (e.clientY - rect.top - panOffset.y) / zoom;
+                
+                const newNode = {
+                    id: generateId(),
+                    type: selectedTool,
+                    x: x - 40,
+                    y: y - 40,
+                    label: `${nodeTypes[selectedTool].label} ${nodes.filter(n => n.type === selectedTool).length + 1}`
+                };
+                
+                setNodes([...nodes, newNode]);
+                setSelectedTool('select');
+                
+                // Update challenge progress
+                if (selectedTool === 'router') {
+                    setChallengeProgress(p => ({ ...p, step1: true }));
+                } else if (selectedTool === 'switch') {
+                    setChallengeProgress(p => ({ ...p, step2: true }));
+                } else if (selectedTool === 'host') {
+                    const hostCount = nodes.filter(n => n.type === 'host').length + 1;
+                    if (hostCount >= 2) {
+                        setChallengeProgress(p => ({ ...p, step3: true }));
+                    }
+                }
+            };
+            
+            // Node dragging
+            const handleNodeMouseDown = (node, e) => {
+                if (selectedTool !== 'select') return;
+                e.stopPropagation();
+                
+                const rect = canvasRef.current.getBoundingClientRect();
+                setDraggingNode(node.id);
+                setDragOffset({
+                    x: e.clientX - rect.left - node.x,
+                    y: e.clientY - rect.top - node.y
+                });
+                setSelectedNode(node.id);
+            };
+            
+            const handleMouseMove = (e) => {
+                if (!canvasRef.current) return;
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX - rect.left - panOffset.x) / zoom;
+                const y = (e.clientY - rect.top - panOffset.y) / zoom;
+                setMousePos({ x, y });
+                
+                if (isPanning) {
+                    const dx = e.clientX - panStart.x;
+                    const dy = e.clientY - panStart.y;
+                    setPanOffset({
+                        x: panOffset.x + dx,
+                        y: panOffset.y + dy
+                    });
+                    setPanStart({ x: e.clientX, y: e.clientY });
+                } else if (draggingNode) {
+                    const newX = x - dragOffset.x;
+                    const newY = y - dragOffset.y;
+                    
+                    setNodes(nodes.map(n =>
+                        n.id === draggingNode
+                            ? { ...n, x: Math.max(0, newX), y: Math.max(0, newY) }
+                            : n
+                    ));
+                }
+            };
+            
+            const handleMouseUp = () => {
+                setDraggingNode(null);
+            };
+            
+            useEffect(() => {
+                if (draggingNode) {
+                    window.addEventListener('mousemove', handleMouseMove);
+                    window.addEventListener('mouseup', handleMouseUp);
+                    return () => {
+                        window.removeEventListener('mousemove', handleMouseMove);
+                        window.removeEventListener('mouseup', handleMouseUp);
+                    };
+                }
+            }, [draggingNode, dragOffset, nodes]);
+
+            // Handle zoom and pan
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                
+                const handleWheel = (e) => {
+                    e.preventDefault();
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+                    
+                    const delta = -e.deltaY * 0.001;
+                    const newZoom = Math.min(Math.max(0.3, zoom + delta), 3);
+                    
+                    // Adjust pan to zoom towards mouse position
+                    const zoomRatio = newZoom / zoom;
+                    const newPanX = mouseX - (mouseX - panOffset.x) * zoomRatio;
+                    const newPanY = mouseY - (mouseY - panOffset.y) * zoomRatio;
+                    
+                    setZoom(newZoom);
+                    setPanOffset({ x: newPanX, y: newPanY });
+                };
+                
+                canvas.addEventListener('wheel', handleWheel, { passive: false });
+                
+                return () => {
+                    canvas.removeEventListener('wheel', handleWheel);
+                };
+            }, [zoom, panOffset]);
+            
+            // Connection creation - DRAG FROM PORT
+            const handlePortMouseDown = (nodeId, e) => {
+                e.stopPropagation();
+                setConnectingFrom(nodeId);
+                setDraggingWire(true);
+            };
+            
+            const handlePortMouseUp = (nodeId, e) => {
+                e.stopPropagation();
+                
+                if (connectingFrom && connectingFrom !== nodeId) {
+                    // Open modal
+                    setLinkConfig({
+                        bandwidth: 100,
+                        latency: 10,
+                        from: connectingFrom,
+                        to: nodeId
+                    });
+                    setShowLinkModal(true);
+                }
+                
+                setDraggingWire(false);
+                setConnectingFrom(null);
+            };
+            
+            const handleCanvasMouseUp = () => {
+                setDraggingWire(false);
+                setConnectingFrom(null);
+                setIsPanning(false);
+            };
+                        
+            const createConnection = () => {
+                const newConn = {
+                    id: generateId(),
+                    from: linkConfig.from,
+                    to: linkConfig.to,
+                    bandwidth: parseInt(linkConfig.bandwidth),
+                    latency: parseInt(linkConfig.latency)
+                };
+                setConnections([...connections, newConn]);
+                setShowLinkModal(false);
+                
+                // Update challenge
+                if (connections.length + 1 >= 3) {
+                    setChallengeProgress(p => ({ ...p, step4: true }));
+                }
+            };
+            
+            // Delete node
+            const deleteNode = (nodeId, e) => {
+                e.stopPropagation();
+                setNodes(nodes.filter(n => n.id !== nodeId));
+                setConnections(connections.filter(c => c.from !== nodeId && c.to !== nodeId));
+                setTrafficGenerators(trafficGenerators.filter(t => t.from !== nodeId && t.to !== nodeId));
+            };
+            
+            // Delete connection
+            const deleteConnection = (connId, e) => {
+                e.stopPropagation();
+                setConnections(connections.filter(c => c.id !== connId));
+            };
+            
+            // Traffic generator
+            const addTrafficGenerator = () => {
+                if (!trafficConfig.from || !trafficConfig.to) return;
+                
+                const newGen = {
+                    id: generateId(),
+                    type: trafficConfig.type,
+                    from: trafficConfig.from,
+                    to: trafficConfig.to
+                };
+                setTrafficGenerators([...trafficGenerators, newGen]);
+                setTrafficConfig({ type: 'web', from: null, to: null });
+                setShowTrafficModal(false);
+                
+                // Update challenge
+                setChallengeProgress(p => ({ ...p, step5: true }));
+            };
+            
+            // Simulation
+            useEffect(() => {
+                if (!isRunning) {
+                    if (simulationRef.current) clearInterval(simulationRef.current);
+                    return;
+                }
+                
+                simulationRef.current = setInterval(() => {
+                    // Spawn packets
+                    trafficGenerators.forEach(gen => {
+                        if (Math.random() < 0.4) {
+                            const path = findPath(nodes, connections, gen.from, gen.to);
+                            if (path && path.length > 1) {
+                                const newPacket = {
+                                    id: generateId(),
+                                    type: gen.type,
+                                    path,
+                                    step: 0,
+                                    position: 0,
+                                    createdAt: Date.now()
+                                };
+                                setPackets(prev => [...prev, newPacket]);
+                            }
+                        }
+                    });
+                    
+                    // Update packets
+                    setPackets(prev => {
+                        const updated = prev.map(packet => {
+                            const conn = connections.find(c =>
+                                (c.from === packet.path[packet.step] && c.to === packet.path[packet.step + 1]) ||
+                                (c.to === packet.path[packet.step] && c.from === packet.path[packet.step + 1])
+                            );
+                            
+                            if (!conn) return { ...packet, status: 'dropped' };
+                            
+                            const speed = conn.bandwidth / 1000;
+                            const newPos = packet.position + speed;
+                            
+                            if (newPos >= 1.0) {
+                                if (packet.step + 2 >= packet.path.length) {
+                                    setStats(s => ({ ...s, delivered: s.delivered + 1 }));
+                                    return { ...packet, status: 'delivered' };
+                                }
+                                return { ...packet, step: packet.step + 1, position: 0 };
+                            }
+                            
+                            return { ...packet, position: newPos };
+                        });
+                        
+                        const active = updated.filter(p => p.status !== 'delivered' && p.status !== 'dropped');
+                        setStats(s => ({ ...s, active: active.length }));
+                        
+                        return active;
+                    });
+                }, 150);
+                
+                return () => {
+                    if (simulationRef.current) clearInterval(simulationRef.current);
+                };
+            }, [isRunning, nodes, connections, trafficGenerators]);
+            
+            // Get connection utilization
+            const getLinkClass = (conn) => {
+                const packetsOnLink = packets.filter(p =>
+                    (conn.from === p.path[p.step] && conn.to === p.path[p.step + 1]) ||
+                    (conn.to === p.path[p.step] && conn.from === p.path[p.step + 1])
+                ).length;
+                
+                const capacity = conn.bandwidth / 50;
+                const util = packetsOnLink / capacity;
+                
+                if (util >= 1.0) return 'critical';
+                if (util >= 0.7) return 'warning';
+                return 'normal';
+            };
+            
+            // Get port position
+            const getPortPosition = (node) => {
+                return {
+                    x: node.x + 40,
+                    y: node.y + 80 + 7 // bottom of node + port offset
+                };
+            };
+            
+            return (
+                <div className="app-container">
+                    {/* Sidebar */}
+                    <div className="sidebar">
+                        <div className="sidebar-header">
+                            <h1>🌐 Network Lab</h1>
+                            <p>Build & Test Networks</p>
+                        </div>
+                        
+                        {/* Challenge */}
+                        <div className="sidebar-section">
+                            <div className="challenge-section">
+                                <div className="challenge-title">📚 Challenge: Build a Network</div>
+                                <div className="challenge-objective">
+                                    Follow these steps to create your first network
+                                </div>
+                                <div className="challenge-steps">
+                                    <div className="challenge-step">
+                                        <div className={`step-number ${challengeProgress.step1 ? 'completed' : ''}`}>1</div>
+                                        <div>Add a Router</div>
+                                    </div>
+                                    <div className="challenge-step">
+                                        <div className={`step-number ${challengeProgress.step2 ? 'completed' : ''}`}>2</div>
+                                        <div>Add a Switch</div>
+                                    </div>
+                                    <div className="challenge-step">
+                                        <div className={`step-number ${challengeProgress.step3 ? 'completed' : ''}`}>3</div>
+                                        <div>Add 2 Hosts</div>
+                                    </div>
+                                    <div className="challenge-step">
+                                        <div className={`step-number ${challengeProgress.step4 ? 'completed' : ''}`}>4</div>
+                                        <div>Drag connections (from blue dot to blue dot)</div>
+                                    </div>
+                                    <div className="challenge-step">
+                                        <div className={`step-number ${challengeProgress.step5 ? 'completed' : ''}`}>5</div>
+                                        <div>Add traffic & press Start</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Tools */}
+                        <div className="sidebar-section">
+                            <h3>Add Devices</h3>
+                            <div className="node-palette">
+                                {Object.entries(nodeTypes).map(([key, config]) => (
+                                    <div
+                                        key={key}
+                                        className={`node-btn ${selectedTool === key ? 'active' : ''}`}
+                                        onClick={() => setSelectedTool(key)}
+                                    >
+                                        <div className="node-icon">{config.icon}</div>
+                                        <div className="node-label">{config.label}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        {/* Stats */}
+                        <div className="sidebar-section">
+                            <h3>Statistics</h3>
+                            <div className="stats-grid">
+                                <div className="stat-card">
+                                    <div className="stat-label">Delivered</div>
+                                    <div className="stat-value success">{stats.delivered}</div>
+                                </div>
+                                <div className="stat-card">
+                                    <div className="stat-label">Dropped</div>
+                                    <div className="stat-value danger">{stats.dropped}</div>
+                                </div>
+                                <div className="stat-card">
+                                    <div className="stat-label">Active</div>
+                                    <div className="stat-value info">{stats.active}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Traffic Generators */}
+                        <div className="sidebar-section">
+                            <h3>Traffic Flows</h3>
+                            <button 
+                                className="tool-btn"
+                                onClick={() => {
+                                    setTrafficConfig({ type: 'web', from: null, to: null });
+                                    setShowTrafficModal(true);
+                                }}
+                            >
+                                ➕ Add Traffic Flow
+                            </button>
+                            {trafficGenerators.length === 0 && (
+                                <p style={{ fontSize: '0.75rem', color: '#64748b', textAlign: 'center', padding: '12px' }}>
+                                    No traffic yet
+                                </p>
+                            )}
+                            {trafficGenerators.map(gen => (
+                                <div key={gen.id} className="traffic-gen-item">
+                                    <div className="traffic-gen-header">
+                                        <div className="traffic-gen-title">
+                                            {gen.type === 'web' && '🌐 Web Traffic'}
+                                            {gen.type === 'voice' && '📞 VoIP'}
+                                            {gen.type === 'video' && '🎥 Video'}
+                                            {gen.type === 'data' && '📦 Data'}
+                                        </div>
+                                        <button 
+                                            className="small-btn small-btn-delete"
+                                            onClick={() => setTrafficGenerators(trafficGenerators.filter(t => t.id !== gen.id))}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                    <div className="traffic-gen-route">
+                                        {nodes.find(n => n.id === gen.from)?.label} → {nodes.find(n => n.id === gen.to)?.label}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="sidebar-section">
+                            <button className="tool-btn" onClick={loadOfficeScenario}>
+                                🏢 Load Office Network
+                            </button>
+                            <button className="tool-btn" onClick={() => {
+                                setNodes([]);
+                                setConnections([]);
+                                setPackets([]);
+                                setTrafficGenerators([]);
+                                setStats({ delivered: 0, dropped: 0, active: 0 });
+                                setChallengeProgress({ step1: false, step2: false, step3: false, step4: false, step5: false });
+                            }}>
+                                🗑️ Clear All
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Main Area */}
+                    <div className="main-area">
+                        <div className="toolbar">
+                            <button 
+                                className={`btn btn-secondary ${selectedTool === 'select' ? 'active' : ''}`}
+                                onClick={() => setSelectedTool('select')}
+                            >
+                                👆 Select
+                            </button>
+                            
+                            {!isRunning ? (
+                                <button
+                                    className="btn btn-success"
+                                    onClick={() => setIsRunning(true)}
+                                    disabled={trafficGenerators.length === 0}
+                                >
+                                    ▶️ Start Simulation
+                                </button>
+                            ) : (
+                                <button className="btn btn-danger" onClick={() => setIsRunning(false)}>
+                                    ⏸️ Stop
+                                </button>
+                            )}
+                            
+                            <button className="btn btn-secondary" onClick={() => {
+                                setPackets([]);
+                                setStats({ delivered: 0, dropped: 0, active: 0 });
+                            }}>
+                                🔄 Reset Stats
+                            </button>
+                            
+                            {selectedTool !== 'select' && selectedTool !== 'connect' && (
+                                <span style={{ color: '#94a3b8', fontSize: '0.875rem', fontWeight: '500' }}>
+                                    Click on canvas to place {nodeTypes[selectedTool]?.label}
+                                </span>
+                            )}
+                            
+                            {draggingWire && (
+                                <span style={{ color: '#10b981', fontSize: '0.875rem', fontWeight: '600' }}>
+                                    📍 Drag to another device's blue dot (or press ESC to cancel)
+                                </span>
+                            )}
+                        </div>
+                        
+                        <div 
+                            className="canvas-container" 
+                            ref={canvasRef}
+                            onClick={handleCanvasClick}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleCanvasMouseUp}
+                            onMouseDown={(e) => {
+                                if (e.button === 0 && e.target.className === 'canvas-container') {
+                                    setIsPanning(true);
+                                    setPanStart({ x: e.clientX, y: e.clientY });
+                                }
+                            }}
+                        >
+                            <div style={{
+                                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+                                transformOrigin: '0 0',
+                                width: '100%',
+                                height: '100%',
+                                position: 'relative'
+                            }}>
+                                <div className="grid-bg"></div>
+                                
+                                {nodes.length === 0 && (
+                                    <div className="empty-state">
+                                        <h3>No devices yet</h3>
+                                        <p>Click a device type on the left, then click here to place it</p>
+                                    </div>
+                                )}
+                                
+                                {/* Instructions */}
+                                {nodes.length > 0 && connections.length === 0 && !draggingWire && (
+                                    <div className="instructions-hint">
+                                        💡 <strong>Tip:</strong> Drag from the blue dot below any device to another device's blue dot to create a connection
+                                    </div>
+                                )}
+                                
+                                {/* Connections SVG */}
+                                <svg className="connection-svg">
+                                    {connections.map(conn => {
+                                        const from = nodes.find(n => n.id === conn.from);
+                                        const to = nodes.find(n => n.id === conn.to);
+                                        if (!from || !to) return null;
+                                        
+                                        const fromPort = getPortPosition(from);
+                                        const toPort = getPortPosition(to);
+                                        
+                                        return (
+                                            <line
+                                                key={conn.id}
+                                                x1={fromPort.x}
+                                                y1={fromPort.y}
+                                                x2={toPort.x}
+                                                y2={toPort.y}
+                                                className={`connection-line ${getLinkClass(conn)}`}
+                                            />
+                                        );
+                                    })}
+                                    
+                                    {/* Temporary wire while dragging */}
+                                    {draggingWire && connectingFrom && (
+                                        <line
+                                            x1={getPortPosition(nodes.find(n => n.id === connectingFrom)).x}
+                                            y1={getPortPosition(nodes.find(n => n.id === connectingFrom)).y}
+                                            x2={mousePos.x}
+                                            y2={mousePos.y}
+                                            className="temp-line"
+                                        />
+                                    )}
+                                </svg>
+                                
+                                {/* Connection Labels & Delete */}
+                                {connections.map(conn => {
+                                    const from = nodes.find(n => n.id === conn.from);
+                                    const to = nodes.find(n => n.id === conn.to);
+                                    if (!from || !to) return null;
+                                    
+                                    const fromPort = getPortPosition(from);
+                                    const toPort = getPortPosition(to);
+                                    const midX = (fromPort.x + toPort.x) / 2;
+                                    const midY = (fromPort.y + toPort.y) / 2;
+                                    
+                                    return (
+                                        <React.Fragment key={`label-${conn.id}`}>
+                                            <div 
+                                                className="connection-label"
+                                                style={{
+                                                    left: `${midX}px`,
+                                                    top: `${midY - 30}px`,
+                                                    transform: 'translateX(-50%)'
+                                                }}
+                                            >
+                                                {conn.bandwidth} Mbps / {conn.latency}ms
+                                            </div>
+                                            <button
+                                                className="delete-connection-btn"
+                                                style={{
+                                                    left: `${midX}px`,
+                                                    top: `${midY + 5}px`,
+                                                    transform: 'translateX(-50%)'
+                                                }}
+                                                onClick={(e) => deleteConnection(conn.id, e)}
+                                            >
+                                                ✕ Delete
+                                            </button>
+                                        </React.Fragment>
+                                    );
+                                })}
+                                
+                                {/* Packets */}
+                                {packets.map(packet => {
+                                    if (packet.step >= packet.path.length - 1) return null;
+                                    const from = nodes.find(n => n.id === packet.path[packet.step]);
+                                    const to = nodes.find(n => n.id === packet.path[packet.step + 1]);
+                                    if (!from || !to) return null;
+                                    
+                                    const fromPort = getPortPosition(from);
+                                    const toPort = getPortPosition(to);
+                                    const x = fromPort.x + (toPort.x - fromPort.x) * packet.position;
+                                    const y = fromPort.y + (toPort.y - fromPort.y) * packet.position;
+                                    
+                                    return (
+                                        <div
+                                            key={packet.id}
+                                            className={`packet packet-${packet.type}`}
+                                            style={{ left: `${x}px`, top: `${y}px` }}
+                                        />
+                                    );
+                                })}
+                                
+                                {/* Nodes */}
+                                {nodes.map(node => {
+                                    const config = nodeTypes[node.type];
+                                    return (
+                                        <div
+                                            key={node.id}
+                                            className={`node node-${node.type} ${selectedNode === node.id ? 'selected' : ''}`}
+                                            style={{ left: `${node.x}px`, top: `${node.y}px` }}
+                                            onMouseDown={(e) => handleNodeMouseDown(node, e)}
+                                        >
+                                            <div className="delete-node-btn" onClick={(e) => deleteNode(node.id, e)}>
+                                                ✕
+                                            </div>
+                                            
+                                            <div className="node-content">
+                                                <div className="node-icon-large">{config.icon}</div>
+                                                <div className="node-name">{node.label}</div>
+                                            </div>
+                                            
+                                            {/* Connection Port */}
+                                            <div 
+                                                className={`connection-port ${connectingFrom === node.id ? 'active' : ''}`}
+                                                style={{
+                                                    left: '50%',
+                                                    bottom: '-7px',
+                                                    transform: 'translateX(-50%)'
+                                                }}
+                                                onMouseDown={(e) => handlePortMouseDown(node.id, e)}
+                                                onMouseUp={(e) => handlePortMouseUp(node.id, e)}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Link Configuration Modal */}
+                    {showLinkModal && (
+                        <div className="modal-overlay" onClick={() => setShowLinkModal(false)}>
+                            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                                <h2>Configure Connection</h2>
+                                <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '20px' }}>
+                                    {nodes.find(n => n.id === linkConfig.from)?.label} ↔ {nodes.find(n => n.id === linkConfig.to)?.label}
+                                </p>
+                                
+                                <div className="form-group">
+                                    <label>Bandwidth (Mbps)</label>
+                                    <select
+                                        value={linkConfig.bandwidth}
+                                        onChange={(e) => setLinkConfig({ ...linkConfig, bandwidth: e.target.value })}
+                                    >
+                                        <option value="10">10 Mbps</option>
+                                        <option value="100">100 Mbps (Fast Ethernet)</option>
+                                        <option value="1000">1 Gbps (Gigabit)</option>
+                                        <option value="10000">10 Gbps</option>
+                                    </select>
+                                    <small>How much data can flow through this link</small>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label>Latency (ms)</label>
+                                    <input
+                                        type="number"
+                                        value={linkConfig.latency}
+                                        onChange={(e) => setLinkConfig({ ...linkConfig, latency: e.target.value })}
+                                        min="1"
+                                        max="500"
+                                    />
+                                    <small>Time delay for packets to travel this link</small>
+                                </div>
+                                
+                                <div className="modal-buttons">
+                                    <button className="btn btn-secondary" onClick={() => setShowLinkModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button className="btn btn-primary" onClick={createConnection}>
+                                        Create Connection
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Traffic Generator Modal */}
+                    {showTrafficModal && (
+                        <div className="modal-overlay" onClick={() => setShowTrafficModal(false)}>
+                            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                                <h2>Add Traffic Flow</h2>
+                                
+                                <div className="form-group">
+                                    <label>Source Device</label>
+                                    <select
+                                        value={trafficConfig.from || ''}
+                                        onChange={(e) => setTrafficConfig({ ...trafficConfig, from: e.target.value })}
+                                    >
+                                        <option value="">Select source...</option>
+                                        {nodes.map(node => (
+                                            <option key={node.id} value={node.id}>
+                                                {node.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label>Destination Device</label>
+                                    <select
+                                        value={trafficConfig.to || ''}
+                                        onChange={(e) => setTrafficConfig({ ...trafficConfig, to: e.target.value })}
+                                    >
+                                        <option value="">Select destination...</option>
+                                        {nodes.filter(n => n.id !== trafficConfig.from).map(node => (
+                                            <option key={node.id} value={node.id}>
+                                                {node.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label>Traffic Type</label>
+                                    <select
+                                        value={trafficConfig.type}
+                                        onChange={(e) => setTrafficConfig({ ...trafficConfig, type: e.target.value })}
+                                    >
+                                        <option value="web">🌐 Web Traffic</option>
+                                        <option value="voice">📞 VoIP Call</option>
+                                        <option value="video">🎥 Video Stream</option>
+                                        <option value="data">📦 Bulk Data</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="modal-buttons">
+                                    <button className="btn btn-secondary" onClick={() => {
+                                        setShowTrafficModal(false);
+                                        setTrafficConfig({ type: 'web', from: null, to: null });
+                                    }}>
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        className="btn btn-primary" 
+                                        onClick={addTrafficGenerator}
+                                        disabled={!trafficConfig.from || !trafficConfig.to}
+                                    >
+                                        Add Traffic
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
