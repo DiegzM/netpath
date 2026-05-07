@@ -39,8 +39,9 @@ export const WorldsListPage: React.FC = () => {
     try {
       const world = await createWorld();
       navigate(`/sandbox/${world.id}`);
-    } catch {
-      setError('Failed to create world. Please try again.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create world. Please try again.';
+      setError(message);
       setCreating(false);
     }
   }
@@ -51,8 +52,9 @@ export const WorldsListPage: React.FC = () => {
     try {
       await deleteWorld(id);
       setWorlds((prev) => prev.filter((w) => w.id !== id));
-    } catch {
-      setError('Failed to delete world.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete world.';
+      setError(message);
     }
   }
 

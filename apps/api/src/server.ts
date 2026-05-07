@@ -76,6 +76,8 @@ const settingsSchema = z.object({
 
 app.register(cors, {
   origin: CORS_ORIGIN,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 });
 
 app.addHook('onRequest', async (request, reply) => {
