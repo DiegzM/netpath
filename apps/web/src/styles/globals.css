@@ -48,3 +48,8 @@ button { font-family: inherit; }
 ::-webkit-scrollbar       { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-base); }
 ::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 2px; }
+
+/* SVG wireless-link dash animation — referenced by inline style in WireLayer */
+@keyframes wirelessDash {
+  to { stroke-dashoffset: -28; }
+}

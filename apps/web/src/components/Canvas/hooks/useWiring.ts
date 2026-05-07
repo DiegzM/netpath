@@ -23,28 +23,27 @@ export function useWiring(canvasRef: React.RefObject<HTMLDivElement>) {
     return () => window.removeEventListener('keydown', h);
   }, [cancelDrawing]);
 
+  const setGhostAtPointer = useCallback((point: { clientX: number; clientY: number }) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) setGhostEnd({ x: point.clientX - rect.left, y: point.clientY - rect.top });
+  }, [canvasRef]);
+
   const completeWire = useCallback((toId: string) => {
     const df = useCanvasStore.getState().drawingFrom;
     if (!df || df === toId) return;
 
-    finishDrawing(toId);
-
-    // Find the connection that was just created
-    const all = useCanvasStore.getState();
-    const newConn = all.connections.find(
-      c => (c.from === df && c.to === toId) ||
-           (c.from === toId && c.to === df)
-    );
+    const newConnId = finishDrawing(toId);
 
     // Deselect the source node, select the new connection instead
-    all.selectDevice(null);
+    useCanvasStore.getState().selectDevice(null);
 
     // Return the connId so NetworkCanvas can set selectedConnId
-    return newConn?.id;
+    return newConnId ?? undefined;
   }, [finishDrawing]);
 
   return {
     ghostEnd,
     completeWire,
+    setGhostAtPointer,
   };
 }

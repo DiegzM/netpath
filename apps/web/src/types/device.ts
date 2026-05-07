@@ -1,22 +1,22 @@
 // ─── Device kinds ──────────────────────────────────────────────────────────────
 
 export type DeviceKind =
-  | 'host'
+  | 'pc'
+  | 'server'
   | 'switch'
   | 'router'
-  | 'access-point'
-  | 'dns-server'
-  | 'firewall'
   | 'internet';
+
+export interface TrafficRule {
+  id: string;
+  destinationId: string;
+  packetsPerSecond: number;
+}
 
 // Per-device configuration — what you'd set in a real device's admin panel
 export interface DeviceConfig {
-  ip?:              string;   // e.g. "192.168.1.1"
-  subnet?:          string;   // e.g. "255.255.255.0"
-  gateway?:         string;   // default gateway IP
-  dhcpEnabled?:     boolean;
-  vlanMemberships?: number[]; // VLANs this device belongs to
-  macAddress?:      string;   // auto-generated or user-set
+  ip?: string; // e.g. "192.168.1.1"
+  trafficRules?: TrafficRule[];
 }
 
 // A device on the canvas

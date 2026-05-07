@@ -1,6 +1,6 @@
-import type { Device }           from '../types/device';
+import type { Device, DeviceKind } from '../types/device';
 import type { Connection }        from '../types/connection';
-import type { ValidationStatus }  from '../types/curriculum';
+import type { StagePathStep, StageStreamConfig, ValidationStatus }  from '../types/curriculum';
 import { getNeighbors } from './graph';
 
 // ─── Reusable validation rules ─────────────────────────────────────────────────
@@ -11,6 +11,10 @@ export type ValidationRule = (
   devices: Device[],
   connections: Connection[],
 ) => ValidationStatus;
+
+export function isConnectionAllowed(kindA: DeviceKind, kindB: DeviceKind, fromId: string, toId: string): boolean {
+  return fromId !== toId && !(kindA === 'internet' && kindB === 'internet');
+}
 
 // All listed device kinds exist on the canvas
 export function requireDeviceKinds(kinds: string[]): ValidationRule {
@@ -71,6 +75,50 @@ function hasConnectionBetween(connections: Connection[], idA: string, idB: strin
     c => (c.from === idA && c.to === idB) ||
          (c.from === idB && c.to === idA),
   );
+}
+
+function getStepCandidates(devices: Device[], step: StagePathStep): Device[] {
+  if ('id' in step) return devices.filter((device) => device.id === step.id);
+  return devices.filter((device) => device.kind === step.kind);
+}
+
+export function resolveStageStreamPath(
+  stream: StageStreamConfig,
+  devices: Device[],
+  connections: Connection[],
+): Device[] | null {
+  if (stream.path.length < 2) return null;
+
+  const candidatesByStep = stream.path.map((step) => getStepCandidates(devices, step));
+  if (candidatesByStep.some((candidates) => candidates.length === 0)) return null;
+
+  function walk(index: number, path: Device[]): Device[] | null {
+    if (index === candidatesByStep.length) return path;
+
+    const previous = path[path.length - 1];
+    for (const candidate of candidatesByStep[index]) {
+      if (path.some((device) => device.id === candidate.id)) continue;
+      if (previous && !hasConnectionBetween(connections, previous.id, candidate.id)) continue;
+
+      const result = walk(index + 1, [...path, candidate]);
+      if (result) return result;
+    }
+
+    return null;
+  }
+
+  return walk(0, []);
+}
+
+export function validateStageStream(
+  stream: StageStreamConfig,
+  devices: Device[],
+  connections: Connection[],
+): ValidationStatus {
+  if (resolveStageStreamPath(stream, devices, connections)) return 'valid';
+
+  const hasAnyRequiredDevice = stream.path.some((step) => getStepCandidates(devices, step).length > 0);
+  return hasAnyRequiredDevice ? 'partial' : 'idle';
 }
 
 // A specific device id is connected to another specific device id

@@ -1,6 +1,11 @@
 import { Pool } from 'pg';
 
 let cachedPool: Pool | null = null;
+let readinessCheckPromise: Promise<void> | null = null;
+let lastSchemaCheckAt = 0;
+
+const SCHEMA_CHECK_INTERVAL_MS = 5000;
+const REQUIRED_TABLES = ['users', 'user_progress', 'user_settings', 'sandbox_worlds'] as const;
 
 function getDatabaseUrl() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -69,4 +74,62 @@ export async function initDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sandbox_worlds (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT 'Untitled World',
+      description TEXT NOT NULL DEFAULT '',
+      thumbnail_data TEXT,
+      canvas_data JSONB NOT NULL DEFAULT '{"devices":[],"connections":[],"simulationSettings":{}}',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    ALTER TABLE sandbox_worlds
+    ALTER COLUMN canvas_data SET DEFAULT '{"devices":[],"connections":[],"simulationSettings":{}}'::jsonb;
+  `);
+
+  lastSchemaCheckAt = Date.now();
+}
+
+export async function ensureDatabaseReady(force = false) {
+  const now = Date.now();
+  if (!force && now - lastSchemaCheckAt < SCHEMA_CHECK_INTERVAL_MS) {
+    return;
+  }
+
+  if (readinessCheckPromise) {
+    return readinessCheckPromise;
+  }
+
+  readinessCheckPromise = (async () => {
+    const pool = getPool();
+    const result = await pool.query<{ tablename: string }>(
+      `
+        SELECT tablename
+        FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename = ANY($1::text[])
+      `,
+      [REQUIRED_TABLES],
+    );
+
+    const existing = new Set(result.rows.map((row) => row.tablename));
+    const hasAllRequired = REQUIRED_TABLES.every((tableName) => existing.has(tableName));
+
+    if (!hasAllRequired) {
+      await initDatabase();
+      return;
+    }
+
+    lastSchemaCheckAt = Date.now();
+  })().finally(() => {
+    readinessCheckPromise = null;
+  });
+
+  return readinessCheckPromise;
 }

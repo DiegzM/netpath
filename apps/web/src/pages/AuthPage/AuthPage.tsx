@@ -185,7 +185,7 @@ export const AuthPage: React.FC = () => {
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="packet_explorer"
+                placeholder="netpath_builder"
                 pattern="[A-Za-z0-9._-]{3,24}"
                 title="3-24 chars. Letters, numbers, dot, underscore, or hyphen only."
                 minLength={3}

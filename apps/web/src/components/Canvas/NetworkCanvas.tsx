@@ -2,16 +2,16 @@ import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { useCanvasStore }  from '../../store/useCanvasStore';
 import { WireLayer }       from './WireLayer';
 import { DeviceNode }      from './DeviceNode';
-import { SimPacket }       from './SimPacket';
 import { ConnectionPopup } from './ConnectionPopup';
+import { DevicePopup }     from './DevicePopup';
 import { useWiring }       from './hooks/useWiring';
+import { usePacketSimulation, type SinglePacketRequest } from './hooks/usePacketSimulation';
 import type { Device, DeviceKind } from '../../types/device';
 import styles from './NetworkCanvas.module.css';
 
 const LABEL_MAP: Record<DeviceKind, string> = {
-  host: 'Host', switch: 'Switch', router: 'Router',
-  'access-point': 'AP', 'dns-server': 'DNS',
-  firewall: 'Firewall', internet: 'Internet',
+  pc: 'PC', server: 'Server', switch: 'Switch', router: 'Router',
+  internet: 'Internet',
 };
 
 const CIRCLE_R = 31;
@@ -35,18 +35,33 @@ function parseDeviceTemplate(raw: string): Device | null {
   }
 }
 
-export const NetworkCanvas: React.FC = () => {
+interface NetworkCanvasProps {
+  isSimulationRunning?: boolean;
+  singlePacketRequest?: SinglePacketRequest | null;
+}
+
+export const NetworkCanvas: React.FC<NetworkCanvasProps> = ({
+  isSimulationRunning = false,
+  singlePacketRequest = null,
+}) => {
   const {
-    devices, addDevice, startDrawing, cancelDrawing,
+    devices, connections, addDevice, startDrawing, cancelDrawing,
     selectDevice, drawingFrom, setSelectedIds,
     clearSelection, removeSelected, undo, redo, past, future,
   } = useCanvasStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { ghostEnd, completeWire } = useWiring(canvasRef);
+  const { ghostEnd, completeWire, setGhostAtPointer } = useWiring(canvasRef);
+  const { packets, linkPressure, deviceHeat } = usePacketSimulation(
+    devices,
+    connections,
+    isSimulationRunning,
+    singlePacketRequest,
+  );
 
   const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
   const [connPopup, setConnPopup] = useState<{ connId: string; x: number; y: number } | null>(null);
+  const [devicePopup, setDevicePopup] = useState<string | null>(null);
   const [marquee, setMarquee]     = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   // ── Global keyboard shortcuts ─────────────────────────────────────────────
@@ -64,23 +79,36 @@ export const NetworkCanvas: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo, removeSelected, cancelDrawing, clearSelection]);
 
-  // ── Node click ────────────────────────────────────────────────────────────
-  const handleNodeClick = useCallback((deviceId: string) => {
-    const df = useCanvasStore.getState().drawingFrom;
+  // ── Sticky node wiring ────────────────────────────────────────────────────
+  const handleNodeWireClick = useCallback((deviceId: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
     setSelectedConnId(null);
     setConnPopup(null);
-    if (df && df !== deviceId) {
+    setDevicePopup(null);
+
+    const activeSourceId = useCanvasStore.getState().drawingFrom;
+
+    if (activeSourceId && activeSourceId !== deviceId) {
       const newConnId = completeWire(deviceId);
-      // Select the new connection, deselect the node
       if (newConnId) {
         setSelectedConnId(newConnId);
-        selectDevice(null);
       }
-    } else {
-      startDrawing(deviceId);
-      selectDevice(deviceId);
+      selectDevice(null);
+      return;
     }
-  }, [completeWire, startDrawing, selectDevice]);
+
+    if (activeSourceId === deviceId) {
+      cancelDrawing();
+      selectDevice(deviceId);
+      return;
+    }
+
+    startDrawing(deviceId);
+    setGhostAtPointer(event);
+    selectDevice(deviceId);
+  }, [cancelDrawing, completeWire, selectDevice, setGhostAtPointer, startDrawing]);
 
   // ── Connection click ──────────────────────────────────────────────────────
   const handleConnClick = useCallback((connId: string, x: number, y: number) => {
@@ -90,14 +118,37 @@ export const NetworkCanvas: React.FC = () => {
     selectDevice(null);
   }, [selectDevice]);
 
+  const handleEditDevice = useCallback((deviceId: string) => {
+    setDevicePopup(deviceId);
+    setSelectedConnId(null);
+    setConnPopup(null);
+  }, []);
+
+  const handleNodeContextMenu = useCallback((deviceId: string) => {
+    selectDevice(deviceId);
+    setDevicePopup(deviceId);
+    setSelectedConnId(null);
+    setConnPopup(null);
+  }, [selectDevice]);
+
   // ── Canvas mousedown — marquee start or cancel ────────────────────────────
   function handleCanvasMouseDown(e: React.MouseEvent) {
     if (e.button !== 0) return;
+
+    if (drawingFrom) {
+      cancelDrawing();
+      selectDevice(null);
+      setSelectedConnId(null);
+      setConnPopup(null);
+      setDevicePopup(null);
+      return;
+    }
 
     cancelDrawing();
     selectDevice(null);
     setSelectedConnId(null);
     setConnPopup(null);
+    setDevicePopup(null);
 
     const rect  = canvasRef.current!.getBoundingClientRect();
     const sx    = e.clientX - rect.left;
@@ -181,6 +232,8 @@ export const NetworkCanvas: React.FC = () => {
         ghostEnd={ghostEnd}
         drawingFromId={drawingFrom}
         selectedConnId={selectedConnId}
+        packets={packets}
+        linkPressure={linkPressure}
         onConnClick={handleConnClick}
       />
 
@@ -189,11 +242,12 @@ export const NetworkCanvas: React.FC = () => {
           key={d.id} device={d}
           isDrawSource={drawingFrom === d.id}
           isWiring={drawingFrom !== null}
-          onNodeClick={handleNodeClick}
+          heat={deviceHeat[d.id] ?? 0}
+          onWireClick={handleNodeWireClick}
+          onEditClick={handleEditDevice}
+          onNodeContextMenu={handleNodeContextMenu}
         />
       ))}
-
-      <SimPacket />
 
       {/* Marquee */}
       {marquee && marquee.w > 4 && marquee.h > 4 && (
@@ -208,6 +262,13 @@ export const NetworkCanvas: React.FC = () => {
           connId={connPopup.connId}
           x={connPopup.x} y={connPopup.y}
           onClose={() => { setConnPopup(null); setSelectedConnId(null); }}
+        />
+      )}
+
+      {devicePopup && (
+        <DevicePopup
+          device={devices.find(d => d.id === devicePopup)!}
+          onClose={() => setDevicePopup(null)}
         />
       )}
 

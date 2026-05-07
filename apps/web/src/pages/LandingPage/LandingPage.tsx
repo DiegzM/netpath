@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { STAGES } from '../../data/stages';
 import styles from './LandingPage.module.css';
 
 const fadeUp = (delay: number) => ({
@@ -10,7 +11,7 @@ const fadeUp = (delay: number) => ({
 });
 
 const STATS = [
-  { value: '5',  label: 'guided stages' },
+  { value: String(STAGES.length), label: 'guided stages' },
   { value: '7',  label: 'device types'  },
   { value: '2',  label: 'curriculum arcs' },
 ];
@@ -35,7 +36,7 @@ export const LandingPage: React.FC = () => {
 
         <motion.p className={styles.tagline} {...fadeUp(0.25)}>
           Learn networking by building it. Drag devices, draw cables,<br />
-          simulate traffic — no theory-only lectures.
+          solve topologies — no theory-only lectures.
         </motion.p>
 
         <motion.div className={styles.ctas} {...fadeUp(0.35)}>

@@ -50,25 +50,6 @@ export function isReachable(
   return findPath(devices, connections, fromId, toId).length > 0;
 }
 
-// ─── VLAN-aware reachability ───────────────────────────────────────────────────
-// Two devices can reach each other only if there's a path where every
-// connection shares their VLAN (or is a trunk).
-
-export function isVlanReachable(
-  devices: Device[],
-  connections: Connection[],
-  fromId: string,
-  toId: string,
-  vlanId: number,
-): boolean {
-  const vlanConns = connections.filter(
-    c => c.config.portMode === 'trunk' ||
-         c.config.vlanId === vlanId    ||
-         c.config.vlanId === undefined    // untagged = VLAN 1 by convention
-  );
-  return findPath(devices, vlanConns, fromId, toId).length > 0;
-}
-
 // ─── Connected components ──────────────────────────────────────────────────────
 // Returns groups of device ids that are connected to each other.
 

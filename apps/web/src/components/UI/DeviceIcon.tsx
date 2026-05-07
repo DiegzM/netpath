@@ -1,13 +1,26 @@
 import React from 'react';
 import type { DeviceKind } from '../../types/device';
 
-const HostIcon = () => (
+const PcIcon = () => (
   <g>
     <rect x="4" y="6" width="24" height="18" rx="2" fill="#0d1117" stroke="currentColor" strokeWidth="1.5"/>
     <rect x="11" y="24" width="10" height="3" fill="currentColor" opacity="0.6"/>
     <rect x="8" y="27" width="16" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/>
     <rect x="7" y="9" width="18" height="12" rx="1" fill="#1a2332" stroke="currentColor" strokeWidth="0.5" opacity="0.8"/>
     <circle cx="16" cy="15" r="3" fill="currentColor" opacity="0.3"/>
+  </g>
+);
+
+const ServerIcon = () => (
+  <g>
+    <rect x="6" y="5" width="20" height="22" rx="2" fill="#0d1117" stroke="currentColor" strokeWidth="1.5"/>
+    {[8, 12, 16, 20].map((y, i) => (
+      <g key={i}>
+        <rect x="8" y={y} width="16" height="3" rx="0.5" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
+        <circle cx="22" cy={y + 1.5} r="1" fill="currentColor" opacity={i % 2 === 0 ? 0.9 : 0.4}/>
+        <rect x="9" y={y + 0.5} width="7" height="2" rx="0.5" fill="currentColor" opacity="0.25"/>
+      </g>
+    ))}
   </g>
 );
 
@@ -38,43 +51,6 @@ const RouterIcon = () => (
   </g>
 );
 
-const AccessPointIcon = () => (
-  <g>
-    <rect x="8" y="20" width="16" height="6" rx="2" fill="#0d1117" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="16" y1="20" x2="16" y2="14" stroke="currentColor" strokeWidth="1.5"/>
-    {[10, 7, 4].map((s, i) => (
-      <path key={i}
-        d={`M ${16-s} ${14+s*0.7} Q 16 ${12-s*0.5} ${16+s} ${14+s*0.7}`}
-        fill="none" stroke="currentColor" strokeWidth="1.2" opacity={1 - i * 0.25}/>
-    ))}
-    <circle cx="16" cy="14" r="2" fill="currentColor" opacity="0.7"/>
-  </g>
-);
-
-const DnsServerIcon = () => (
-  <g>
-    <rect x="5" y="6" width="22" height="20" rx="2" fill="#0d1117" stroke="currentColor" strokeWidth="1.5"/>
-    {[9, 13, 17, 21].map((y, i) => (
-      <g key={i}>
-        <rect x="8" y={y} width="8" height="2" rx="1" fill="currentColor" opacity={0.7 - i * 0.1}/>
-        <circle cx="21" cy={y+1} r="1.5" fill="currentColor" opacity={i % 2 === 0 ? 0.9 : 0.4}/>
-      </g>
-    ))}
-    <rect x="5" y="6" width="22" height="4" rx="2" fill="currentColor" opacity="0.15"/>
-    <circle cx="9" cy="8" r="1" fill="currentColor" opacity="0.6"/>
-    <circle cx="13" cy="8" r="1" fill="currentColor" opacity="0.4"/>
-  </g>
-);
-
-const FirewallIcon = () => (
-  <g>
-    <path d="M16 4 L26 9 L26 18 Q26 24 16 28 Q6 24 6 18 L6 9 Z"
-      fill="#0d1117" stroke="currentColor" strokeWidth="1.5"/>
-    <path d="M16 8 Q20 12 18 16 Q22 14 20 20 Q18 16 16 18 Q14 16 12 20 Q10 14 14 16 Q12 12 16 8 Z"
-      fill="currentColor" opacity="0.7"/>
-  </g>
-);
-
 const InternetIcon = () => (
   <g>
     <circle cx="16" cy="16" r="11" fill="#0d1117" stroke="currentColor" strokeWidth="1.5"/>
@@ -86,13 +62,11 @@ const InternetIcon = () => (
 );
 
 const ICONS: Record<DeviceKind, React.FC> = {
-  'host':          HostIcon,
-  'switch':        SwitchIcon,
-  'router':        RouterIcon,
-  'access-point':  AccessPointIcon,
-  'dns-server':    DnsServerIcon,
-  'firewall':      FirewallIcon,
-  'internet':      InternetIcon,
+  'pc':          PcIcon,
+  'server':      ServerIcon,
+  'switch':      SwitchIcon,
+  'router':      RouterIcon,
+  'internet':    InternetIcon,
 };
 
 interface DeviceIconProps {

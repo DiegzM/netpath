@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useCanvasStore } from '../../store/useCanvasStore';
-import type { ConnectionConfig }  from '../../types/connection';
+import type { ConnectionConfig, LinkBandwidth, LinkLatency } from '../../types/connection';
 import styles from './NetworkCanvas.module.css';
 
 interface ConnectionPopupProps {
@@ -53,8 +53,6 @@ export const ConnectionPopup: React.FC<ConnectionPopupProps> = ({
     onClose();
   }
 
-  const showIp   = from?.kind === 'router' && to?.kind === 'router';
-
   return (
     <>
       <div
@@ -66,11 +64,10 @@ export const ConnectionPopup: React.FC<ConnectionPopupProps> = ({
         style={{ left: x, top: y }}
         onMouseDown={e => e.stopPropagation()}
       >
-      <div className={styles.popupHeader}>
-        <span className={styles.popupTitle}>Connection</span>
-        {/* Regular close — no delete */}
-        <button className={styles.popupClose} onClick={onClose} title="Close">✕</button>
-      </div>
+        <div className={styles.popupHeader}>
+          <span className={styles.popupTitle}>Link Inspector</span>
+          <button className={styles.popupClose} onClick={onClose} title="Close">✕</button>
+        </div>
 
         <div className={styles.popupRoute}>
           <span className={styles.popupDevice}>{from?.label ?? '?'}</span>
@@ -79,55 +76,27 @@ export const ConnectionPopup: React.FC<ConnectionPopupProps> = ({
         </div>
 
         <div className={styles.popupFields}>
-          {/* <label className={styles.popupLabel}>Port Mode</label>
+          <label className={styles.popupLabel}>Bandwidth</label>
           <select
             className={styles.popupSelect}
-            value={conn.config.portMode}
-            onChange={e => update({ portMode: e.target.value as PortMode })}
+            value={conn.config.bandwidth ?? 'medium'}
+            onChange={e => update({ bandwidth: e.target.value as LinkBandwidth })}
           >
-            <option value="access">Access (single VLAN)</option>
-            <option value="trunk">Trunk (multiple VLANs)</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
           </select>
 
-          {showVlan && (
-            <>
-              <label className={styles.popupLabel}>VLAN ID</label>
-              <input
-                className={styles.popupInput}
-                type="number" min={1} max={4094}
-                placeholder="1–4094 (default: 1)"
-                value={conn.config.vlanId ?? ''}
-                onChange={e => update({ vlanId: Number(e.target.value) || undefined })}
-              />
-            </>
-          )} */}
-
-          {showIp && (
-            <>
-              <label className={styles.popupLabel}>IP — {from?.label} side</label>
-              <input
-                className={styles.popupInput}
-                type="text" placeholder="e.g. 10.0.0.1/30"
-                value={conn.config.ipA ?? ''}
-                onChange={e => update({ ipA: e.target.value })}
-              />
-              <label className={styles.popupLabel}>IP — {to?.label} side</label>
-              <input
-                className={styles.popupInput}
-                type="text" placeholder="e.g. 10.0.0.2/30"
-                value={conn.config.ipB ?? ''}
-                onChange={e => update({ ipB: e.target.value })}
-              />
-            </>
-          )}
-
-          <label className={styles.popupLabel}>Label (optional)</label>
-          <input
-            className={styles.popupInput}
-            type="text" placeholder="e.g. uplink, mgmt"
-            value={conn.config.description ?? ''}
-            onChange={e => update({ description: e.target.value })}
-          />
+          <label className={styles.popupLabel}>Latency</label>
+          <select
+            className={styles.popupSelect}
+            value={conn.config.latency ?? 'medium'}
+            onChange={e => update({ latency: e.target.value as LinkLatency })}
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
         </div>
 
         <div className={styles.popupActions}>

@@ -10,6 +10,7 @@ import { SandboxPage }  from '../pages/SandboxPage/SandboxPage';
 import { ProgressPage } from '../pages/ProgressPage/ProgressPage';
 import { AuthPage }     from '../pages/AuthPage/AuthPage';
 import { SettingsPage } from '../pages/SettingsPage/SettingsPage';
+import { WorldsListPage } from '../pages/SandboxPage/WorldsListPage';
 
 // ─── To add a new page:
 //   1. Create src/pages/YourPage/YourPage.tsx
@@ -24,7 +25,8 @@ export const AppRouter: React.FC = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/"         element={<PageTransition><LandingPage  /></PageTransition>} />
         <Route path="/auth"     element={<PageTransition><AuthPage     /></PageTransition>} />
-        <Route path="/sandbox"  element={<PageTransition><SandboxPage  /></PageTransition>} />
+        <Route path="/sandbox"  element={<PageTransition><WorldsListPage /></PageTransition>} />
+        <Route path="/sandbox/:worldId" element={<PageTransition><SandboxPage /></PageTransition>} />
         <Route path="/learn"    element={<PageTransition><LearnPage    /></PageTransition>} />
         <Route path="/progress" element={<PageTransition><ProgressPage /></PageTransition>} />
         <Route element={<ProtectedRoute requireUser />}>

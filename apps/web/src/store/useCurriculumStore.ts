@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 import type { ValidationStatus } from '../types/curriculum';
 import { STAGES } from '../data/stages';
-import { validateStageStream } from '../engine/simulation';
-import { combineValidationStatuses } from '../engine/validation';
+import { combineValidationStatuses, validateStageStream } from '../engine/validation';
 import { useCanvasStore } from './useCanvasStore';
-import { useSimStore } from './useSimStore';
 import { apiRequest } from '../auth/api';
 import { getAccessToken } from '../auth/storage';
 
@@ -35,6 +33,18 @@ const DEFAULT_PROGRESS: StoredProgress = {
 interface ProgressResponse {
   currentStageIndex: number;
   completedStageIds: number[];
+}
+
+function getMaxUnlockedStageIndex(completedStages: number[]): number {
+  let maxUnlocked = 0;
+  for (let i = 0; i < STAGES.length; i += 1) {
+    if (completedStages.includes(STAGES[i].id)) {
+      maxUnlocked = Math.min(i + 1, STAGES.length - 1);
+      continue;
+    }
+    break;
+  }
+  return maxUnlocked;
 }
 
 async function loadProgressFromApi(userId: string): Promise<StoredProgress> {
@@ -81,7 +91,6 @@ export const useCurriculumStore = create<CurriculumState>((set, get) => ({
 
   setActiveUser(userId) {
     if (!userId) {
-      useSimStore.getState().stop();
       useCanvasStore.getState().resetToStage(0);
       set({
         activeUserId: userId,
@@ -100,8 +109,8 @@ export const useCurriculumStore = create<CurriculumState>((set, get) => ({
     });
 
     void loadProgressFromApi(userId).then((progress) => {
-      const stageIndex = Math.min(progress.currentStageIndex, STAGES.length - 1);
-      useSimStore.getState().stop();
+      const maxUnlocked = getMaxUnlockedStageIndex(progress.completedStages);
+      const stageIndex = Math.min(Math.min(progress.currentStageIndex, STAGES.length - 1), maxUnlocked);
       useCanvasStore.getState().resetToStage(stageIndex);
       set({
         activeUserId: userId,
@@ -116,8 +125,9 @@ export const useCurriculumStore = create<CurriculumState>((set, get) => ({
   goToStage(index) {
     const stage = STAGES[index];
     if (!stage) return;
+    const maxUnlocked = getMaxUnlockedStageIndex(get().completedStages);
+    if (index > maxUnlocked) return;
     // Reset canvas to match the new stage
-    useSimStore.getState().stop();
     useCanvasStore.getState().resetToStage(index);
     set((state) => {
       void saveProgressToApi(state.activeUserId, {

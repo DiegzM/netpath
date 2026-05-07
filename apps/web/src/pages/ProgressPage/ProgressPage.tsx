@@ -19,7 +19,20 @@ export const ProgressPage: React.FC = () => {
   const nav = useNavigate();
   const pct = Math.round((completedStages.length / STAGES.length) * 100);
 
+  const maxUnlockedIndex = React.useMemo(() => {
+    let unlocked = 0;
+    for (let i = 0; i < STAGES.length; i += 1) {
+      if (completedStages.includes(STAGES[i].id)) {
+        unlocked = Math.min(i + 1, STAGES.length - 1);
+        continue;
+      }
+      break;
+    }
+    return unlocked;
+  }, [completedStages]);
+
   function handleGo(index: number) {
+    if (index > maxUnlockedIndex) return;
     goToStage(index);
     nav('/learn');
   }
@@ -46,13 +59,13 @@ export const ProgressPage: React.FC = () => {
 
         <div className={styles.grid}>
           {STAGES.map((stage, i) => {
-            const done   = completedStages.includes(stage.id);
-            const locked = !done && i > 0 && !completedStages.includes(STAGES[i - 1]?.id);
+            const done = completedStages.includes(stage.id);
+            const locked = i > maxUnlockedIndex;
             return (
               <motion.div key={stage.id}
                 className={`${styles.card} ${done ? styles.done : ''} ${locked ? styles.locked : ''}`}
                 variants={cardVariants} initial="initial" animate="animate" custom={i}
-                onClick={() => !locked && handleGo(i)}>
+                onClick={() => handleGo(i)}>
                 <div className={styles.badge}>{stage.id}</div>
                 <div className={styles.arc}>Arc {stage.arc}</div>
                 <h3 className={styles.cardTitle}>{stage.title}</h3>
@@ -63,9 +76,10 @@ export const ProgressPage: React.FC = () => {
                   ))}
                 </div>
                 <div className={styles.statusRow}>
-                  {done   ? <span className={styles.tagDone}>✓ Completed</span>
-                  : locked ? <span className={styles.tagLocked}>🔒 Locked</span>
-                  :          <span className={styles.tagOpen}>→ Start</span>}
+                  {done ? <span className={styles.tagDone}>✓ Completed</span>
+                        : locked
+                          ? <span className={styles.tagLocked}>Locked</span>
+                          : <span className={styles.tagOpen}>→ Start</span>}
                 </div>
               </motion.div>
             );

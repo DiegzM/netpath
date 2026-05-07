@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Device }     from '../types/device';
 import type { Connection } from '../types/connection';
 import { DEFAULT_CONNECTION_CONFIG } from '../types/connection';
+import { isConnectionAllowed } from '../engine/validation';
 import { STAGES } from '../data/stages';
 
 interface Snapshot {
@@ -28,7 +29,7 @@ interface CanvasState {
   updateDevice:     (id: string, patch: Partial<Device>) => void;
 
   startDrawing:     (id: string) => void;
-  finishDrawing:    (id: string) => void;
+  finishDrawing:    (id: string) => string | null;
   cancelDrawing:    () => void;
   removeConnection: (id: string) => void;
   updateConnection: (id: string, patch: Partial<Connection>) => void;
@@ -43,6 +44,7 @@ interface CanvasState {
 
   resetToStage: (stageIndex: number) => void;
   clearCanvas:  () => void;
+  loadCanvas:   (devices: Device[], connections: Connection[]) => void;
 }
 
 function snapshot(state: CanvasState): Snapshot {
@@ -114,22 +116,38 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   startDrawing(id) { set({ drawingFrom: id }); },
 
   finishDrawing(toId) {
-    const { drawingFrom, connections } = get();
-    if (!drawingFrom || drawingFrom === toId) { set({ drawingFrom: null }); return; }
+    const { drawingFrom, connections, devices } = get();
+    if (!drawingFrom || drawingFrom === toId) { set({ drawingFrom: null }); return null; }
+
+    const fromDevice = devices.find((d) => d.id === drawingFrom);
+    const toDevice = devices.find((d) => d.id === toId);
+    if (!fromDevice || !toDevice) { set({ drawingFrom: null }); return null; }
+
+    if (!isConnectionAllowed(fromDevice.kind, toDevice.kind, drawingFrom, toId)) {
+      set({ drawingFrom: null });
+      return null;
+    }
+
     const exists = connections.some(
       c => (c.from === drawingFrom && c.to === toId) ||
            (c.from === toId && c.to === drawingFrom)
     );
     if (!exists) {
+      const id = `c-${drawingFrom}-${toId}-${Date.now()}`;
       const newConn: Connection = {
-        id:     `c-${drawingFrom}-${toId}-${Date.now()}`,
+        id,
         from:   drawingFrom,
         to:     toId,
         config: { ...DEFAULT_CONNECTION_CONFIG },
       };
       withHistory(get, set, { connections: [...connections, newConn], drawingFrom: null });
+      return id;
     } else {
       set({ drawingFrom: null });
+      return connections.find(
+        c => (c.from === drawingFrom && c.to === toId) ||
+             (c.from === toId && c.to === drawingFrom)
+      )?.id ?? null;
     }
   },
 
@@ -206,6 +224,18 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       selectedDeviceId: null,
       selectedIds:      new Set(),
       drawingFrom:      null,
+    });
+  },
+
+  loadCanvas(devices, connections) {
+    set({
+      devices,
+      connections,
+      selectedDeviceId: null,
+      selectedIds:      new Set(),
+      drawingFrom:      null,
+      past:             [],
+      future:           [],
     });
   },
 }));

@@ -6,7 +6,7 @@ import cors from '@fastify/cors';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
-import { getPool, initDatabase } from './db.js';
+import { ensureDatabaseReady, getPool, initDatabase } from './db.js';
 import { requireAuth, signAccessToken } from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -76,6 +76,15 @@ const settingsSchema = z.object({
 
 app.register(cors, {
   origin: CORS_ORIGIN,
+});
+
+app.addHook('onRequest', async (request, reply) => {
+  try {
+    await ensureDatabaseReady();
+  } catch (error) {
+    request.log.error(error, 'Database readiness check failed');
+    return reply.status(503).send({ message: 'Database is initializing. Please retry in a moment.' });
+  }
 });
 
 app.get('/health', async () => ({ status: 'ok' }));
@@ -436,6 +445,149 @@ app.put('/api/v1/progress', { preHandler: requireAuth }, async (request, reply) 
 });
 
 app.post('/api/v1/auth/logout', async () => ({ success: true }));
+
+// ─── Sandbox Worlds ──────────────────────────────────────────────────────────
+
+const createWorldSchema = z.object({
+  title:       z.string().min(1).max(100).default('Untitled World'),
+  description: z.string().max(500).default(''),
+});
+
+const updateWorldSchema = z.object({
+  title:         z.string().min(1).max(100),
+  description:   z.string().max(500),
+  thumbnailData: z.string().optional().nullable(),
+  canvasData:    z.object({
+    devices:     z.array(z.any()),
+    connections: z.array(z.any()),
+    simulationSettings: z.record(z.any()).optional(),
+  }),
+});
+
+// List user's worlds
+app.get('/api/v1/worlds', { preHandler: requireAuth }, async (request) => {
+  const auth = (request as typeof request & { auth: { sub: string } }).auth;
+  const result = await pool.query(
+    `SELECT id, title, description, thumbnail_data, created_at, updated_at
+     FROM sandbox_worlds
+     WHERE owner_user_id = $1
+     ORDER BY updated_at DESC`,
+    [auth.sub],
+  );
+  return {
+    worlds: result.rows.map((row) => ({
+      id:            row.id,
+      title:         row.title,
+      description:   row.description,
+      thumbnailData: row.thumbnail_data,
+      createdAt:     row.created_at,
+      updatedAt:     row.updated_at,
+    })),
+  };
+});
+
+// Create world
+app.post('/api/v1/worlds', { preHandler: requireAuth }, async (request, reply) => {
+  const auth = (request as typeof request & { auth: { sub: string } }).auth;
+  const parsed = createWorldSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply.status(400).send({ message: 'Invalid request payload.' });
+  }
+  const { title, description } = parsed.data;
+  const result = await pool.query(
+    `INSERT INTO sandbox_worlds (owner_user_id, title, description)
+     VALUES ($1, $2, $3)
+     RETURNING id, title, description, thumbnail_data, canvas_data, created_at, updated_at`,
+    [auth.sub, title, description],
+  );
+  const row = result.rows[0];
+  return reply.status(201).send({
+    world: {
+      id:            row.id,
+      title:         row.title,
+      description:   row.description,
+      thumbnailData: row.thumbnail_data,
+      canvasData:    row.canvas_data,
+      createdAt:     row.created_at,
+      updatedAt:     row.updated_at,
+    },
+  });
+});
+
+// Get single world (owner only)
+app.get('/api/v1/worlds/:id', { preHandler: requireAuth }, async (request, reply) => {
+  const auth = (request as typeof request & { auth: { sub: string } }).auth;
+  const { id } = request.params as { id: string };
+  const result = await pool.query(
+    `SELECT id, title, description, thumbnail_data, canvas_data, created_at, updated_at
+     FROM sandbox_worlds
+     WHERE id = $1 AND owner_user_id = $2
+     LIMIT 1`,
+    [id, auth.sub],
+  );
+  if (!result.rowCount) {
+    return reply.status(404).send({ message: 'World not found.' });
+  }
+  const row = result.rows[0];
+  return {
+    world: {
+      id:            row.id,
+      title:         row.title,
+      description:   row.description,
+      thumbnailData: row.thumbnail_data,
+      canvasData:    row.canvas_data,
+      createdAt:     row.created_at,
+      updatedAt:     row.updated_at,
+    },
+  };
+});
+
+// Update/save world (owner only)
+app.put('/api/v1/worlds/:id', { preHandler: requireAuth }, async (request, reply) => {
+  const auth = (request as typeof request & { auth: { sub: string } }).auth;
+  const { id } = request.params as { id: string };
+  const parsed = updateWorldSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply.status(400).send({ message: 'Invalid request payload.' });
+  }
+  const { title, description, thumbnailData, canvasData } = parsed.data;
+  const result = await pool.query(
+    `UPDATE sandbox_worlds
+     SET title = $1, description = $2, thumbnail_data = $3, canvas_data = $4, updated_at = now()
+     WHERE id = $5 AND owner_user_id = $6
+     RETURNING id, title, description, thumbnail_data, canvas_data, updated_at`,
+    [title, description, thumbnailData ?? null, JSON.stringify(canvasData), id, auth.sub],
+  );
+  if (!result.rowCount) {
+    return reply.status(404).send({ message: 'World not found.' });
+  }
+  const row = result.rows[0];
+  return {
+    world: {
+      id:            row.id,
+      title:         row.title,
+      description:   row.description,
+      thumbnailData: row.thumbnail_data,
+      canvasData:    row.canvas_data,
+      updatedAt:     row.updated_at,
+    },
+  };
+});
+
+// Delete world (owner only)
+app.delete('/api/v1/worlds/:id', { preHandler: requireAuth }, async (request, reply) => {
+  const auth = (request as typeof request & { auth: { sub: string } }).auth;
+  const { id } = request.params as { id: string };
+  const result = await pool.query(
+    `DELETE FROM sandbox_worlds WHERE id = $1 AND owner_user_id = $2`,
+    [id, auth.sub],
+  );
+  if (!result.rowCount) {
+    return reply.status(404).send({ message: 'World not found.' });
+  }
+  return { success: true };
+});
+
 
 const start = async () => {
   await initDatabase();

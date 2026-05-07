@@ -16,6 +16,8 @@
 .tab:hover      { border-color: var(--teal); color: var(--text-secondary); }
 .tabActive      { border-color: var(--teal); color: var(--teal); background: #0d2530; box-shadow: 0 0 10px var(--teal-glow); }
 .tabDone        { border-color: var(--teal-dim); color: var(--teal-dim); background: #0d2520; }
+.tabLocked      { opacity: 0.45; cursor: not-allowed; }
+.tabLocked:hover { border-color: var(--border); color: var(--text-faint); }
 
 .body { flex: 1; display: flex; min-height: 0; }
 
@@ -84,6 +86,80 @@
   border-radius: var(--radius-sm); padding: 8px 10px; line-height: 1.55;
 }
 
+.simActions {
+  margin-top: auto;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.simBtn,
+.packetBtn,
+.packetSendBtn {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 7px 9px;
+  cursor: pointer;
+}
+
+.simBtn:hover,
+.packetBtn:hover,
+.packetSendBtn:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.simBtn:disabled,
+.packetBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stopBtn {
+  border-color: var(--error);
+  color: var(--error);
+  background: rgba(229, 62, 62, 0.12);
+}
+
+.packetPrompt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+}
+
+.packetPrompt label {
+  font-size: 9px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.packetPrompt select {
+  background: #0f2038;
+  border: 1px solid #1e3a5a;
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 6px 7px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.packetPrompt select:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
 /* ─── Workspace ────────────────────────────────────────────────────────────── */
 
 .workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -107,9 +183,6 @@
 }
 .btn:active   { transform: scale(0.97); }
 .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-.simulate { background: linear-gradient(135deg, #d97706, #b45309); color: #fff; }
-.simulate:not(:disabled):hover { box-shadow: 0 0 12px rgba(217,119,6,0.4); }
 
 .check {
   background: linear-gradient(135deg, rgba(12, 30, 43, 0.95), rgba(18, 42, 58, 0.92));
