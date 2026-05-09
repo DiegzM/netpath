@@ -1,0 +1,280 @@
+import React, { useRef, useCallback, useState, useEffect } from 'react';
+import { useCanvasStore }  from '../../store/useCanvasStore';
+import { WireLayer }       from './WireLayer';
+import { DeviceNode }      from './DeviceNode';
+import { ConnectionPopup } from './ConnectionPopup';
+import { DevicePopup }     from './DevicePopup';
+import { useWiring }       from './hooks/useWiring';
+import { usePacketSimulation, type SinglePacketRequest } from './hooks/usePacketSimulation';
+import type { Device, DeviceKind } from '../../types/device';
+import styles from './NetworkCanvas.module.css';
+
+const LABEL_MAP: Record<DeviceKind, string> = {
+  pc: 'PC', server: 'Server', switch: 'Switch', router: 'Router',
+  internet: 'Internet',
+};
+
+const CIRCLE_R = 31;
+
+function parseDeviceTemplate(raw: string): Device | null {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<Device>;
+    if (!parsed.id || !parsed.kind || !parsed.label) return null;
+    return {
+      id: parsed.id,
+      kind: parsed.kind,
+      label: parsed.label,
+      x: parsed.x ?? 0,
+      y: parsed.y ?? 0,
+      config: parsed.config ?? {},
+    };
+  } catch {
+    return null;
+  }
+}
+
+interface NetworkCanvasProps {
+  isSimulationRunning?: boolean;
+  singlePacketRequest?: SinglePacketRequest | null;
+}
+
+export const NetworkCanvas: React.FC<NetworkCanvasProps> = ({
+  isSimulationRunning = false,
+  singlePacketRequest = null,
+}) => {
+  const {
+    devices, connections, addDevice, startDrawing, cancelDrawing,
+    selectDevice, drawingFrom, setSelectedIds,
+    clearSelection, removeSelected, undo, redo, past, future,
+  } = useCanvasStore();
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const { ghostEnd, completeWire, setGhostAtPointer } = useWiring(canvasRef);
+  const { packets, linkPressure, deviceHeat } = usePacketSimulation(
+    devices,
+    connections,
+    isSimulationRunning,
+    singlePacketRequest,
+  );
+
+  const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
+  const [connPopup, setConnPopup] = useState<{ connId: string; x: number; y: number } | null>(null);
+  const [devicePopup, setDevicePopup] = useState<string | null>(null);
+  const [marquee, setMarquee]     = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  // ── Global keyboard shortcuts ─────────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta    = e.metaKey || e.ctrlKey;
+      const inInput = ['INPUT','SELECT','TEXTAREA'].includes((e.target as HTMLElement).tagName);
+
+      if (meta && !e.shiftKey && e.key === 'z') { e.preventDefault(); undo(); return; }
+      if ((meta && e.shiftKey && e.key === 'z') || (meta && e.key === 'y')) { e.preventDefault(); redo(); return; }
+      if (!inInput && (e.key === 'Delete' || e.key === 'Backspace')) removeSelected();
+      if (e.key === 'Escape') { cancelDrawing(); clearSelection(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo, removeSelected, cancelDrawing, clearSelection]);
+
+  // ── Sticky node wiring ────────────────────────────────────────────────────
+  const handleNodeWireClick = useCallback((deviceId: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setSelectedConnId(null);
+    setConnPopup(null);
+    setDevicePopup(null);
+
+    const activeSourceId = useCanvasStore.getState().drawingFrom;
+
+    if (activeSourceId && activeSourceId !== deviceId) {
+      const newConnId = completeWire(deviceId);
+      if (newConnId) {
+        setSelectedConnId(newConnId);
+      }
+      selectDevice(null);
+      return;
+    }
+
+    if (activeSourceId === deviceId) {
+      cancelDrawing();
+      selectDevice(deviceId);
+      return;
+    }
+
+    startDrawing(deviceId);
+    setGhostAtPointer(event);
+    selectDevice(deviceId);
+  }, [cancelDrawing, completeWire, selectDevice, setGhostAtPointer, startDrawing]);
+
+  // ── Connection click ──────────────────────────────────────────────────────
+  const handleConnClick = useCallback((connId: string, x: number, y: number) => {
+    if (useCanvasStore.getState().drawingFrom) return;
+    setSelectedConnId(connId);
+    setConnPopup({ connId, x, y });
+    selectDevice(null);
+  }, [selectDevice]);
+
+  const handleEditDevice = useCallback((deviceId: string) => {
+    setDevicePopup(deviceId);
+    setSelectedConnId(null);
+    setConnPopup(null);
+  }, []);
+
+  const handleNodeContextMenu = useCallback((deviceId: string) => {
+    selectDevice(deviceId);
+    setDevicePopup(deviceId);
+    setSelectedConnId(null);
+    setConnPopup(null);
+  }, [selectDevice]);
+
+  // ── Canvas mousedown — marquee start or cancel ────────────────────────────
+  function handleCanvasMouseDown(e: React.MouseEvent) {
+    if (e.button !== 0) return;
+
+    if (drawingFrom) {
+      cancelDrawing();
+      selectDevice(null);
+      setSelectedConnId(null);
+      setConnPopup(null);
+      setDevicePopup(null);
+      return;
+    }
+
+    cancelDrawing();
+    selectDevice(null);
+    setSelectedConnId(null);
+    setConnPopup(null);
+    setDevicePopup(null);
+
+    const rect  = canvasRef.current!.getBoundingClientRect();
+    const sx    = e.clientX - rect.left;
+    const sy    = e.clientY - rect.top;
+    let   moved = false;
+
+    const onMove = (me: MouseEvent) => {
+      moved       = true;
+      const cx    = me.clientX - rect.left;
+      const cy    = me.clientY - rect.top;
+      setMarquee({
+        x: Math.min(sx, cx), y: Math.min(sy, cy),
+        w: Math.abs(cx - sx), h: Math.abs(cy - sy),
+      });
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+
+      if (!moved) { setMarquee(null); return; }
+
+      setMarquee(prev => {
+        if (!prev || (prev.w < 5 && prev.h < 5)) return null;
+        const inBox = new Set<string>();
+        useCanvasStore.getState().devices.forEach(d => {
+          if (
+            d.x + CIRCLE_R >= prev.x && d.x - CIRCLE_R <= prev.x + prev.w &&
+            d.y + CIRCLE_R >= prev.y && d.y - CIRCLE_R <= prev.y + prev.h
+          ) inBox.add(d.id);
+        });
+        if (inBox.size > 0) setSelectedIds(inBox);
+        return null;
+      });
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+  }
+
+  // ── Drop from palette ─────────────────────────────────────────────────────
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const template = parseDeviceTemplate(e.dataTransfer.getData('deviceTemplate'));
+
+    if (template) {
+      if (devices.some((device) => device.id === template.id)) return;
+      addDevice({ ...template, x, y });
+      return;
+    }
+
+    const kind = e.dataTransfer.getData('deviceKind') as DeviceKind;
+    if (!kind) return;
+    addDevice({
+      id: `d-${Date.now()}`, kind, label: LABEL_MAP[kind],
+      x, y,
+      config: {},
+    });
+  }
+
+  return (
+    <div
+      ref={canvasRef}
+      className={`${styles.canvas} ${drawingFrom ? styles.canvasDrawing : ''}`}
+      onMouseDown={handleCanvasMouseDown}
+      onDrop={handleDrop}
+      onDragOver={e => e.preventDefault()}
+    >
+      <div className={styles.grid} />
+
+      {/* Undo / Redo */}
+      <div className={styles.undoRedo} onMouseDown={e => e.stopPropagation()}>
+        <button className={styles.histBtn} disabled={!past.length}   onClick={undo} title="Undo (⌘Z)">↩</button>
+        <button className={styles.histBtn} disabled={!future.length} onClick={redo} title="Redo (⌘⇧Z)">↪</button>
+      </div>
+
+      <WireLayer
+        ghostEnd={ghostEnd}
+        drawingFromId={drawingFrom}
+        selectedConnId={selectedConnId}
+        packets={packets}
+        linkPressure={linkPressure}
+        onConnClick={handleConnClick}
+      />
+
+      {devices.map(d => (
+        <DeviceNode
+          key={d.id} device={d}
+          isDrawSource={drawingFrom === d.id}
+          isWiring={drawingFrom !== null}
+          heat={deviceHeat[d.id] ?? 0}
+          onWireClick={handleNodeWireClick}
+          onEditClick={handleEditDevice}
+          onNodeContextMenu={handleNodeContextMenu}
+        />
+      ))}
+
+      {/* Marquee */}
+      {marquee && marquee.w > 4 && marquee.h > 4 && (
+        <div
+          className={styles.marquee}
+          style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+        />
+      )}
+
+      {connPopup && (
+        <ConnectionPopup
+          connId={connPopup.connId}
+          x={connPopup.x} y={connPopup.y}
+          onClose={() => { setConnPopup(null); setSelectedConnId(null); }}
+        />
+      )}
+
+      {devicePopup && (
+        <DevicePopup
+          device={devices.find(d => d.id === devicePopup)!}
+          onClose={() => setDevicePopup(null)}
+        />
+      )}
+
+      {devices.length === 0 && (
+        <p className={styles.empty}>Drop devices here to start building</p>
+      )}
+    </div>
+  );
+};
