@@ -202,10 +202,28 @@ app.post('/api/v1/auth/google', async (request, reply) => {
     return reply.status(400).send({ message: 'Invalid request payload.' });
   }
 
-  const ticket = await googleClient.verifyIdToken({
-    idToken: parsed.data.credential,
-    audience: GOOGLE_CLIENT_ID,
-  });
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: parsed.data.credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'unknown verification error';
+    request.log.warn({ err: error, reason }, 'Google ID token verification failed');
+
+    if (reason.toLowerCase().includes('wrong recipient')) {
+      return reply.status(401).send({
+        message: 'Google token audience mismatch. Ensure GOOGLE_CLIENT_ID matches VITE_GOOGLE_CLIENT_ID.',
+      });
+    }
+
+    if (reason.toLowerCase().includes('wrong number of segments')) {
+      return reply.status(401).send({ message: 'Google credential is malformed.' });
+    }
+
+    return reply.status(401).send({ message: 'Unable to verify Google account.' });
+  }
 
   const payload = ticket.getPayload();
   if (!payload || !payload.email || !payload.sub) {

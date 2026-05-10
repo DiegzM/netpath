@@ -69,6 +69,27 @@
   box-shadow: 0 0 22px var(--teal-glow), 0 4px 20px rgba(0,0,0,0.5) !important;
 }
 
+.nodeHeating .circle {
+  border-color: #f56565;
+  box-shadow: 0 0 18px rgba(229, 62, 62, 0.28), 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.nodeHot .circle {
+  border-color: #e53e3e;
+  box-shadow: 0 0 26px rgba(229, 62, 62, 0.52), 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.nodeOverheated .circle {
+  border-color: #ff2b2b;
+  box-shadow: 0 0 34px rgba(229, 62, 62, 0.78), 0 4px 20px rgba(0,0,0,0.5);
+  animation: overheatPulse 0.55s ease-in-out infinite alternate;
+}
+
+@keyframes overheatPulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
 /* Source node glows orange while wire is being drawn */
 .nodeDrawSource .circle {
   border-color: var(--amber) !important;
@@ -85,17 +106,6 @@
   border-color: var(--teal);
   box-shadow: 0 0 22px var(--teal-glow);
   transform: scale(1.06);
-}
-
-/* Overheated node (overload) */
-.nodeOverheated .circle {
-  border-color: #fc8181 !important;
-  box-shadow: 0 0 24px rgba(252,129,129,0.7), 0 4px 20px rgba(0,0,0,0.5) !important;
-  animation: overheatedPulse 0.35s ease-in-out infinite alternate;
-}
-@keyframes overheatedPulse {
-  from { box-shadow: 0 0 12px rgba(252,129,129,0.5); }
-  to   { box-shadow: 0 0 36px rgba(252,129,129,0.95); }
 }
 
 /* Selection pulse ring */
@@ -161,73 +171,6 @@
 
 .editBadge:hover {
   filter: brightness(1.08);
-}
-
-/* ─── Simulation packet ────────────────────────────────────────────────────── */
-
-.packet {
-  position: absolute;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  z-index: 10;
-  pointer-events: none;
-}
-.packetPing { background: radial-gradient(circle, #fff, #68d391); box-shadow: 0 0 8px rgba(104,211,145,0.85); }
-.packetDns  { background: radial-gradient(circle, #fff, #63b3ed); box-shadow: 0 0 8px rgba(99,179,237,0.85); }
-.packetWeb  { background: radial-gradient(circle, #fff, #4fd1c5); box-shadow: 0 0 8px rgba(79,209,197,0.85); }
-.packetFile { background: radial-gradient(circle, #fff, #f6ad55); box-shadow: 0 0 8px rgba(246,173,85,0.85); }
-.packetTraffic { background: radial-gradient(circle, #fff, #fc8181); box-shadow: 0 0 8px rgba(252,129,129,0.85); }
-.packetReturn  { opacity: 0.5; }
-.packetBurst   { animation: burst 0.5s ease-out forwards; }
-.packetDropped { animation: drop 0.55s ease-out forwards; }
-.packetQueued  { animation: packetPulse 0.6s ease-in-out infinite alternate; }
-.packetNote {
-  position: absolute;
-  max-width: 190px;
-  min-width: 110px;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.35;
-  white-space: normal;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
-  z-index: 11;
-  pointer-events: none;
-}
-.packetNoteInfo {
-  color: #d8f7ff;
-  background: rgba(16, 60, 79, 0.92);
-  border: 1px solid rgba(104, 211, 245, 0.45);
-}
-.packetNoteWarning {
-  color: #fff2cc;
-  background: rgba(92, 59, 8, 0.94);
-  border: 1px solid rgba(246, 173, 85, 0.5);
-}
-.packetNoteDanger {
-  color: #ffe0e0;
-  background: rgba(89, 20, 20, 0.95);
-  border: 1px solid rgba(252, 129, 129, 0.5);
-}
-@keyframes burst {
-  0%   { transform: scale(1);   opacity: 1; }
-  60%  { transform: scale(2.5); opacity: 0.6; }
-  100% { transform: scale(0.5); opacity: 0; }
-}
-
-@keyframes drop {
-  0%   { transform: scale(1);   opacity: 1;   background: radial-gradient(circle, #fff, #fc5c5c); }
-  40%  { transform: scale(3.5); opacity: 0.8; box-shadow: 0 0 16px rgba(252,92,92,0.9); }
-  100% { transform: scale(0);   opacity: 0; }
-}
-
-@keyframes packetPulse {
-  from { opacity: 0.4; transform: scale(0.85); }
-  to   { opacity: 1;   transform: scale(1.1);  }
 }
 
 /* ─── Connection popup ────────────────────────────────────────────────────── */
